@@ -236,6 +236,13 @@ setMethod("addSubs", "Arena", function(object, smax=0, mediac=object@mediac, dif
       newmedia[[mediac[i]]] <- Substance(object@n, object@m, 0, name=mediac[i], difunc=difunc, difspeed=difspeed[i], gridgeometry=object@gridgeometry)
     }
   }else{newmedia <- object@media}
+  if(length(object@mediac) > length(newmedia)){
+    appendlist <- list()
+    for(i in setdiff(object@mediac, names(newmedia))){
+      appendlist[[i]] <- Substance(object@n, object@m, 0, name=i, difunc=difunc, difspeed=6.7e-6, gridgeometry=object@gridgeometry)
+    }
+    newmedia = c(newmedia,appendlist)
+  }
   if(add){
     for(i in 1:length(mediac)){
       newdmat = newmedia[[mediac[i]]]@diffmat + Matrix::Matrix(smax[i], nrow=object@n, ncol=object@m, sparse=TRUE)
@@ -545,7 +552,7 @@ setMethod("simEnv", "Arena", function(object, time, lrw=NULL, continue=F){
                  "pde2" = {diffuseSteveCpp(submat, D=arena@media[[j]]@difspeed, h=1, tstep=arena@tstep)},
                  "naive"= {diffuseNaiveCpp(submat, donut=FALSE)},
                  "r"    = {for(k in 1:arena@media[[j]]@difspeed){diffuseR(arena@media[[j]])}},
-                 stop("Simulation function for Organism object not defined yet.")) 
+                 stop("Diffusion function not defined yet.")) 
           arena@media[[j]]@diffmat <- Matrix::Matrix(submat, sparse=TRUE)
         }
         sublb_tmp[,j] <- apply(arena@orgdat, 1, function(x,sub){return(sub[x[4],x[5]])},sub=submat)
@@ -809,7 +816,8 @@ setMethod("addEval", "Eval", function(object, arena, replace=F){
       sapply(names(subch), function(x, oldmed, newmed){
         subch[x] <<- subch[x]+sum(abs(oldmed[[x]]-as.vector(newmed[[x]]@diffmat)))
       },oldmed=extractMed(object), newmed=arena@media)
-      eval.parent(substitute(object@subchange <- object@subchange + subch))
+      subch[names(object@subchange)] <- object@subchange + subch[names(object@subchange)]
+      eval.parent(substitute(object@subchange <- subch))
     }
     if(sum(subch)!=0){
       eval.parent(substitute(object@medlist[[length(object@medlist)+1]] <- lapply(arena@media, function(x, subc){
@@ -831,6 +839,9 @@ setMethod("addEval", "Eval", function(object, arena, replace=F){
     })))
     eval.parent(substitute(object@simlist[[length(object@simlist)]] <- arena@orgdat))
     eval.parent(substitute(object@phenotypes <- arena@phenotypes))
+    eval.parent(substitute(object@specs <- arena@specs)) 
+    eval.parent(substitute(object@mediac <- arena@mediac))
+    eval.parent(substitute(object@media <- arena@media))
   }
 })
 
@@ -1480,13 +1491,30 @@ setMethod("statPheno", "Eval", function(object, type_nr=1, phenotype_nr, dict=NU
 })
 
 
+#' @title Function for investigation of feeding between phenotypes
+#'
+#' @description The generic function \code{findFeeding} 
+#' @export
+#' @rdname findFeeding
+#' @importFrom igraph graph.empty add.edges delete.edges delete.vertices V E degree vcount layout_with_fr
+#' 
+#' @param object An object of class Eval.
+#' @param tcut Integer giving the minimal mutual occurence ot be considered (dismiss very seldom feedings)
+#' @param scut List of substance names which should be ignored
+#' @param legendpos A character variable declaring the position of the legend
+#' @param dict List defining new substance names. List entries are intepreted as old names and the list names as the new ones.
+#' @return Graph (igraph)
+#' 
+setGeneric("findFeeding", function(object, dict=NULL, tcut=5, scut=list(), legendpos="topleft"){standardGeneric("findFeeding")})
+#' @export
+#' @rdname findFeeding
+setMethod("findFeeding", "Eval", function(object, dict=NULL, tcut=5, scut=list(), legendpos="topleft"){
 
-
-setGeneric("findCrossFeeding", function(object, dict=NULL){standardGeneric("findCrossFeeding")})
-setMethod("findCrossFeeding", "Eval", function(object, dict=NULL){
+  # possible problem inactive phenotype is not mentioned in object@phenotypes...
 
   # 1) Time: get occupation matrix for all phenotypes (occ_phen)
   pheno_nr <- table(names(object@phenotypes))
+  pheno_index <- vector()
   list <- lapply(object@simlist, function(x){ # time step
     unlist(lapply(seq_along(object@specs), function(j){ # bac type
       occ <- table(x[which(x$type==j),]$phenotype)
@@ -1494,9 +1522,16 @@ setMethod("findCrossFeeding", "Eval", function(object, dict=NULL){
       names(p) <- paste0(names(object@specs)[j], "_pheno", seq(0,pheno_nr[[names(object@specs[j])]]))
       p
     }))})
-  mat_phen  <- do.call(cbind, list)
-  occ_phen  <- mat_phen != 0
   
+  mat_phen  <- do.call(cbind, list)
+  mat_tmp <- mat_phen
+  mat_tmp[mat_tmp>0] <- 1
+  cutoff <- which(rowSums(mat_tmp)>tcut)
+  if(length(cutoff) < 2) {
+    stop("tcut too high, no phenotypes found")
+  } else mat_phen <- mat_phen[which(rowSums(mat_tmp)>tcut),] # reduce considered phenotypes (should exists >= tcut time steps)
+  occ_phen  <- mat_phen != 0
+
   # 2) Substances: get matrix of substrates that could consumed and produced by phenotypes in principle
   mediac <- gsub("\\(e\\)","", gsub("EX_","",object@mediac))
   if(length(dict) > 0) mediac <- unlist(lapply(mediac, function(x){dict[[x]]}))
@@ -1516,27 +1551,109 @@ setMethod("findCrossFeeding", "Eval", function(object, dict=NULL){
   phenmat_bin <- replace(phenmat, phenmat==2, -1)
   phenmat_abs <- abs(phenmat_bin)
   res <- phenmat_bin[,which(abs(colSums(phenmat_bin)) != colSums(phenmat_abs))]
+  if(length(scut)>0) res <- res[,-which(colnames(res) %in% scut)] # reduce substrates
+
+  # graph
+  pindex <- rownames(mat_phen)# phenotype index
+  cindex <- colnames(res) # substance color index
+  g <-igraph::graph.empty(n=length(pindex), directed=TRUE)
+  igraph::V(g)$name <- gsub("pheno","",pindex)
   
 
   # 3) Combinatorics: check for all pairs of phenotypes if they 
   #    i) occured in the same time steps and 
   #   ii) exchange at least one substance
-  combi <- combn(rownames(phenmat), 2)
+  #combi <- combn(rownames(phenmat), 2)
+  combi <- combn(rownames(mat_phen), 2)
   for(i in 1:ncol(combi)){
-    co_occ <- which(occ_phen[combi[,i][1],] & occ_phen[combi[,i][2],]==T)    #which(occ_phen["modelPOA_new_pheno13",] & occ_phen["modelPOA_new_pheno5",]==T)
+    if(length(grep("pheno0", combi[,i])) > 0) next # do not consider cuples with phenotype0 (i.d. metabolic inactive)
+    co_occ <- which(occ_phen[combi[,i][1],] & occ_phen[combi[,i][2],]==T)
     if( length(co_occ) > 0 ){
       ex_both     <- res[c(combi[,i][1], combi[,i][2]),]
       feeding_index <- which(colSums(ex_both)==0 & colSums(abs(ex_both))!=0)
       if(length(feeding_index)>0){
-        feeding <- ex_both[,feeding_index]
-        cat("\npossible cross feeding at time steps\n")
-        print(co_occ)
-        print(feeding)
+        # if only one substance is exchanged some hack to get name of substance into returned data structure of feeding
+        if(length(feeding_index)==1){
+          feeding <- unlist(list(colnames(ex_both)[feeding_index], ex_both[,feeding_index]))
+        } else {
+          feeding <- ex_both[,feeding_index]
+          lapply(seq(dim(feeding)[2]), function(x){
+            if(feeding[1,x] == -1){
+              new_edge <- c(which(pindex==combi[,i][1]), which(pindex==combi[,i][2]))
+            }else new_edge <- c(which(pindex==combi[,i][2]), which(pindex==combi[,i][1]))
+            col <- colpal3[which(cindex == colnames(feeding)[x])]
+            g <<- igraph::add.edges(g, new_edge, color=col, weight=length(co_occ))
+          })
+        }
+        #cat("\npossible cross feeding at time steps\n")
+        #print(co_occ)
+        #print(feeding)
       }
     }
   }
-  })
+  
+  g <- igraph::delete.edges(g, which(igraph::E(g)$weight<tcut)) # delete seldom feedings
+  g <- igraph::delete.vertices(g, which(igraph::degree(g, mode="all") == 0)) # delete unconnected
+  
+  if(igraph::vcount(g) >= 2){
+    plot(g, layout=igraph::layout_with_fr, vertex.size=5,
+         edge.arrow.size=0.3, edge.width=E(g)$weight/10)
+    legend(legendpos,legend=cindex, col=colpal3, pch=19, cex=0.7)
+  }
+  return(g)
+})
 
+
+
+
+setGeneric("statSpec", function(object, type_nr=1, dict=NULL,
+                                legend_show=TRUE, legend_pos="center", legend_cex=0.75){standardGeneric("statSpec")})
+setMethod("statSpec", "Eval", function(object, type_nr=1, dict=NULL, 
+                                       legend_show=TRUE, legend_pos="center", legend_cex=0.75){
+  if(type_nr <= 0 | type_nr > length(object@specs)){
+    stop("Invalid type number, should be number indicating a species of arena@specs")
+  }
+  sname <- names(object@specs[type_nr])
+  pheno_nr <- table(names(object@phenotypes))[[sname]]
+  print(paste(sname, "with phenotypes:", pheno_nr))
+  
+  # zero-phenotyp is inactive!
+  phens <- rep(0, length(object@phenotypes)+1) # total number of occuring cells for each phenotyp
+  ptimes <- rep(0, length(object@phenotypes)+1) # number of times steps a phenotyp occured
+  availTimes <- rep(FALSE, length(object@simlist)) # true/false if cell is living for each timestep
+  occ <- lapply(seq(from=2, to=length(object@simlist)), function(t){
+    res <- table(object@simlist[[t]][which(object@simlist[[t]]$type==type_nr),]$phenotype)
+    #print(phens)
+    phens[as.numeric(names(res))+1]   <<- phens[as.numeric(names(res))+1] + res # -1 because of zero-phenotyp
+    ptimes[as.numeric(names(res))+1]  <<- ptimes[as.numeric(names(res))+1] + 1
+    if(length(res) > 0) availTimes[t] <<- TRUE
+    p <- unlist(lapply(seq(0,pheno_nr), function(i){ifelse(i %in% names(res),res[paste(i)], 0)}))
+    names(p) <- paste0("pheno", seq(0,pheno_nr))
+    p
+  })
+  
+  # species is available in the following time steps
+  availTimesteps <- which(availTimes==TRUE)
+  print(paste("alive between time steps:", min(availTimesteps), "-", max(availTimesteps)))
+  
+  len <- length(object@phenotypes)+1
+  if(len>length(colpal3)) cols <- colpal1[1:len] else cols <- colpal3[1:len]
+
+  # plot growth curve with all phenotypes
+  mat_phen  <- do.call(cbind, occ)
+  matplot(t(mat_phen), type='b', col=cols, pch=1, lty=1, lwd=5,
+          xlab=paste0('time in ', ifelse(object@tstep==1, "", object@tstep), 'h'), ylab='amount of organisms',
+          main='Growth curve')
+  legend(legend_pos, rownames(mat_phen), col=cols, cex=legend_cex, fill=cols)  
+  
+  # analyze phenotypes: plot total cell number vs. time steps of occurence
+  plot(ptimes, phens, bg=cols,type="p", pch = 23, log="y",
+       xlab="Number of occured time steps ", ylab="Total number of cells", main=paste(sname,"phenotypes: cells vs. occurrence"))
+  if(legend_show){
+    legend(legend_pos, pch = 23, pt.bg=cols, cex=legend_cex,
+           legend=seq(0, length(object@phenotypes)))
+  }
+})
 
 
 

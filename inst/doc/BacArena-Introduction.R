@@ -15,7 +15,7 @@ arena = Arena(n=100, m=100, Lx=0.025, Ly=0.025)
 addOrg(arena,bac,amount=1,x=50,y=50)
 
 ## ------------------------------------------------------------------------
-addSubs(arena, smax=0.05, difspeed=6.7e-6, unit='mM') 
+addSubs(arena, smax=0.05, unit='mM', difspeed=6.7e-6) 
 
 ## ------------------------------------------------------------------------
 eval <- simEnv(arena,time=20)

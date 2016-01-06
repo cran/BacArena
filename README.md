@@ -6,13 +6,14 @@ Existing genome-scale metabolic models can be used to simulate growth and intera
 In BacArena two well established methods are merged: a) Flux balance analysis to predict the activity of
 metabolic reactions and b) Agent based modelling in order to provide an environment.
 
-It has been  efficiently implemented in R language (with some C++ routines) and is freely available (soon on cran).
+It has been  efficiently implemented in R language (with some C++ routines) and is freely available [CRAN](https://cran.r-project.org/package=BacArena).
 
 Features:
 - Each organism is represented individually
 - Simulation of >10 different species and thousands of organisms on your desktop computer
 - Diffusion of substances
-- Detection of different phenotypes
+- Screening of phenotypes
+- Detection of crossfeeding
 - Chemotaxis
 - Kinetics of reactions
 - Separation of simulation and evaluation
@@ -24,14 +25,27 @@ Features:
 
 ## Installation
 
-- To install the latest release:
-  ```R CMD install https://github.com/euba/BacArena/releases/download/0.9/BacArena_0.9.tar.gz```
+- Install the latest release:
+  ```r
+install.packages("BacArena")
+```
 
-- To install the development version:
+- Install the development version:
   ```r
 library(devtools)
 install_github("euba/bacarena")
 ```
+
+- Special hints for windows user
+  - Besides [R](https://cran.r-project.org/bin/windows/base/) you need to install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)
+
+
+## Quick start
+```r
+library("BacArena")
+openArena()
+```
+
 
 ## Documentation
 
