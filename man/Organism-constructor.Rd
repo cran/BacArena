@@ -7,10 +7,10 @@
 \usage{
 Organism(model, algo = "fba", ex = "EX_", ex_comp = NA,
   csuffix = "\\\\[c\\\\]", esuffix = "\\\\[e\\\\]", lyse = F,
-  feat = list(), typename = NA, ...)
+  feat = list(), typename = NA, setExInf = TRUE, ...)
 }
 \arguments{
-\item{model}{model}
+\item{model}{Object of class sybil::modelorg containging the genome sclae metabolic model}
 
 \item{algo}{A single character string giving the name of the algorithm to use. See \link[sybil]{SYBIL_SETTINGS}}
 
@@ -27,6 +27,8 @@ Organism(model, algo = "fba", ex = "EX_", ex_comp = NA,
 \item{feat}{A list containing conditional features for the object (contains at the momement only biomass components for lysis).}
 
 \item{typename}{A string defining the name (set to model name in default case)}
+
+\item{setExInf}{Enable if all lower bounds of exchange reaction which are set to zero (i.e. no uptake possible!) should be set to -infitity}
 
 \item{...}{Arguments of \code{\link{Organism-class}}}
 }

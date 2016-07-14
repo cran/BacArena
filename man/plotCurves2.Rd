@@ -7,11 +7,13 @@
 \title{Function for plotting the overall change as curves with maximally distinct colors}
 \usage{
 plotCurves2(object, legendpos = "topleft", ignore = c("EX_h(e)", "EX_pi(e)",
-  "EX_h2o(e)"), num = 10, phencol = F, dict = NULL)
+  "EX_h2o(e)"), num = 10, phencol = FALSE, biomcol = FALSE, dict = NULL,
+  subs = list(), growthCurve = TRUE, subCurve = TRUE)
 
 \S4method{plotCurves2}{Eval}(object, legendpos = "topright",
-  ignore = c("EX_h(e)", "EX_pi(e)", "EX_h2o(e)"), num = 10, phencol = F,
-  dict = NULL)
+  ignore = c("EX_h(e)", "EX_pi(e)", "EX_h2o(e)"), num = 10,
+  phencol = FALSE, biomcol = FALSE, dict = NULL, subs = list(),
+  growthCurve = TRUE, subCurve = TRUE)
 }
 \arguments{
 \item{object}{An object of class Eval.}
@@ -24,7 +26,15 @@ plotCurves2(object, legendpos = "topleft", ignore = c("EX_h(e)", "EX_pi(e)",
 
 \item{phencol}{Boolean variable indicating whether phenotypes should be higlighted}
 
+\item{biomcol}{A boolean indicating if biomass should be included in gowth curve}
+
 \item{dict}{List defining new substance names. List entries are intepreted as old names and the list names as the new ones.}
+
+\item{subs}{List of substance names. If empty, substances with highest variance will be used.}
+
+\item{growthCurve}{True if growth curve should be shown (default TRUE)}
+
+\item{subCurve}{True if substance curve should be shown (default TRUE)}
 }
 \value{
 Returns two graphs in one plot: the growth curves and the curves of concentration changes
@@ -38,11 +48,11 @@ The parameter \code{retdata} can be used to access the data used for the returne
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
+           minweight=0.05,growtype="exponential") #initialize a bacterium
 arena <- Arena(n=20,m=20) #initialize the environment
-addOrg(arena,bac,amount=10) #add 10 organisms
-addSubs(arena,40) #add all possible substances
-eval <- simEnv(arena,10)
+arena <- addOrg(arena,bac,amount=10) #add 10 organisms
+arena <- addSubs(arena,40) #add all possible substances
+eval <- simEnv(arena,5)
 plotCurves2(eval)
 }
 \seealso{

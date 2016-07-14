@@ -6,9 +6,9 @@
 \alias{checkPhen,Arena-method}
 \title{Function for checking phenotypes in the environment}
 \usage{
-checkPhen(object, org, cutoff = 1e-06)
+checkPhen(object, org, cutoff = 1e-06, fbasol)
 
-\S4method{checkPhen}{Arena}(object, org, cutoff = 1e-06)
+\S4method{checkPhen}{Arena}(object, org, cutoff = 1e-06, fbasol)
 }
 \arguments{
 \item{object}{An object of class Arena.}
@@ -16,6 +16,8 @@ checkPhen(object, org, cutoff = 1e-06)
 \item{org}{An object of class Organism.}
 
 \item{cutoff}{A number giving the cutoff for values of the objective function and fluxes of exchange reactions.}
+
+\item{fbasol}{Problem object according to the constraints and then solved with \code{optimizeProb}.}
 }
 \value{
 Returns a number indicating the number of the phenotype in the phenotype list.
@@ -25,13 +27,6 @@ The generic function \code{checkPhen} checks and adds the phenotypes of organism
 }
 \details{
 The phenotypes are defined by flux through exchange reactions, which indicate potential differential substrate usages. Uptake of substances are indicated by a negative and production of substances by a positive number.
-}
-\examples{
-data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
-bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
-arena <- Arena(n=20,m=20) #initialize the environment
-checkPhen(arena,bac) #returns 1 as the index of the current phenotype in the list.
 }
 \seealso{
 \code{\link{Arena-class}} and \code{\link{getPhenotype}}

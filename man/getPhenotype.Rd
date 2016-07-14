@@ -6,14 +6,19 @@
 \alias{getPhenotype,Organism-method}
 \title{Function to extract the phenotype of an organism object}
 \usage{
-getPhenotype(object, cutoff = 1e-06)
+getPhenotype(object, cutoff = 1e-06, fbasol, par = FALSE)
 
-\S4method{getPhenotype}{Organism}(object, cutoff = 1e-06)
+\S4method{getPhenotype}{Organism}(object, cutoff = 1e-06, fbasol,
+  par = FALSE)
 }
 \arguments{
 \item{object}{An object of class Organisms.}
 
 \item{cutoff}{A number giving the cutoff value by which value of objective function is considered greater than 0.}
+
+\item{fbasol}{Problem object according to the constraints and then solved with \code{optimizeProb}.}
+
+\item{par}{A boolean indicating if running in parallel mode.}
 }
 \value{
 Returns the phenotype of the organisms where the uptake of substances is indicated by a negative and production of substances by a positive number
@@ -23,14 +28,6 @@ The generic function \code{getPhenotype} implements an identification of organis
 }
 \details{
 The phenotypes are defined by flux through exchange reactions, which indicate potential differential substrate usages. Uptake of substances is indicated by a negative and production of substances by a positive number.
-}
-\examples{
-\dontrun{
-data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
-org <- Organism(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a organism
-getPhenotype(org)
-}
 }
 \seealso{
 \code{\link{Organism-class}}, \code{\link{checkPhen}} and \code{\link{minePheno}}

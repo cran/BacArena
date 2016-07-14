@@ -6,14 +6,16 @@
 \alias{growLin,Organism-method}
 \title{Function for letting organisms grow linearly}
 \usage{
-growLin(object, growth)
+growLin(object, growth, fbasol)
 
-\S4method{growLin}{Organism}(object, growth)
+\S4method{growLin}{Organism}(object, growth, fbasol)
 }
 \arguments{
 \item{object}{An object of class Organisms.}
 
 \item{growth}{A number indicating the current biomass, which has to be updated.}
+
+\item{fbasol}{Problem object according to the constraints and then solved with \code{optimizeProb}.}
 }
 \value{
 Returns the updated biomass of the organisms of interest.
@@ -23,12 +25,6 @@ The generic function \code{growLin} implements a growth model of organisms in th
 }
 \details{
 Linear growth of organisms is implemented by adding the calculated growthrate by \code{optimizeLP} to the already present growth value.
-}
-\examples{
-data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
-org <- Organism(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a organism
-growLin(org,1)
 }
 \seealso{
 \code{\link{Organism-class}} and \code{\link{optimizeLP}}

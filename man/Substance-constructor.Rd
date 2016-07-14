@@ -5,7 +5,7 @@
 \alias{Substance-constructor}
 \title{Constructor of the S4 class \code{Substance}}
 \usage{
-Substance(n, m, smax, gridgeometry, difspeed = 1, ...)
+Substance(n, m, smax, gridgeometry, difspeed = 6.7e-06, ...)
 }
 \arguments{
 \item{n}{A number giving the horizontal size of the environment.}

@@ -6,9 +6,9 @@
 \alias{constrain,Organism-method}
 \title{Function for constraining the models based on metabolite concentrations}
 \usage{
-constrain(object, reacts, lb, dryweight, time, scale)
+constrain(object, reacts, lb, dryweight, time, scale, j)
 
-\S4method{constrain}{Organism}(object, reacts, lb, dryweight, time, scale)
+\S4method{constrain}{Organism}(object, reacts, lb, dryweight, time, scale, j)
 }
 \arguments{
 \item{object}{An object of class Organisms.}
@@ -22,6 +22,8 @@ constrain(object, reacts, lb, dryweight, time, scale)
 \item{time}{A number giving the time intervals for each simulation step.}
 
 \item{scale}{A numeric defining the scaling (units for linear programming has to be in certain range)}
+
+\item{j}{debuging index to track cell}
 }
 \value{
 Returns the lower bounds, which carry the constraints and names of relevant reactions.
@@ -35,7 +37,7 @@ The constraints are calculated according to the flux definition as mmol/(gDW*hr)
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 org <- Organism(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize an organism
+           minweight=0.05,growtype="exponential") #initialize an organism
 lobnds <- constrain(org,org@medium,org@lbnd[org@medium],1,1)
 }
 \seealso{

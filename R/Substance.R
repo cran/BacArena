@@ -15,6 +15,7 @@
 #' @slot smax A number representing the start concentration of the substance for each grid cell in the environment. 
 #' @slot diffmat A sparse matrix containing all concentrations of the substance in the environment.
 #' @slot name A character vector representing the name of the substance.
+#' @slot id A character vector representing the identifier of the substance.
 #' @slot difunc A character vector ("pde","cpp" or "r") describing the function for diffusion.
 #' @slot difspeed A number indicating the diffusion speed (given by cm^2/s).
 #' @slot diffgeometry Diffusion coefficient defined on all grid cells (initially set by constructor).
@@ -25,6 +26,7 @@ setClass("Substance",
            smax = "numeric",
            diffmat = "Matrix",
            name = "character",
+           id = "character",
            difunc = "character",
            difspeed = "numeric",
            diffgeometry = "list",
@@ -56,7 +58,7 @@ setClass("Substance",
 #' @param gridgeometry A list containing grid geometry parameter 
 #' @param ... Arguments of \code{\link{Substance-class}}
 #' @return Object of class \code{Substance}
-Substance <- function(n, m, smax, gridgeometry, difspeed=1, ...){
+Substance <- function(n, m, smax, gridgeometry, difspeed=6.7e-6, ...){
   diffmat <- Matrix::Matrix(smax, nrow=n, ncol=m, sparse=TRUE)
   
   Dgrid <- ReacTran::setup.prop.2D(value = difspeed, grid = gridgeometry$grid2D)
@@ -164,8 +166,7 @@ setMethod("diffusePDE", "Substance", function(object, init_mat, gridgeometry, lr
   #init_mat <- as.matrix(object@diffmat)
   if(is.null(lrw)){
     lrw=estimate_lrw(gridgeometry$grid2D$x.N, gridgeometry$grid2D$y.N)}
-  D <- object@difspeed*3600 # change unit of diff const to cm^2/h
-  solution <- deSolve::ode.2D(y = init_mat, func = get(object@pde), times=c(0,0+tstep), parms = c(gridgeometry=gridgeometry, diffgeometry=object@diffgeometry, boundS=object@boundS),
+  solution <- deSolve::ode.2D(y = init_mat, func = get(object@pde), times=c(1,1+tstep), parms = c(gridgeometry=gridgeometry, diffgeometry=object@diffgeometry, boundS=object@boundS),
                      dimens = c(gridgeometry$grid2D$x.N, gridgeometry$grid2D$y.N), method="lsodes", lrw=lrw)#160000
   diff_mat <- matrix(data=solution[2,][-1], ncol=ncol(init_mat), nrow=nrow(init_mat))
   return(diff_mat)
@@ -177,5 +178,5 @@ setMethod("diffusePDE", "Substance", function(object, init_mat, gridgeometry, lr
 
 setMethod(show, signature(object="Substance"), function(object){
   print(paste('Compound ',object@name,' of class Substance with a total concentration of ',
-              sum(object@diffmat)/length(c(object@diffmat)),' mmol per gridcell.',sep=''))
+              sum(object@diffmat)/length(object@diffmat),' mmol per gridcell.',sep=''))
 })

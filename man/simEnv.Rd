@@ -6,9 +6,13 @@
 \alias{simEnv,Arena-method}
 \title{Main function for simulating all processes in the environment}
 \usage{
-simEnv(object, time, lrw = NULL, continue = F)
+simEnv(object, time, lrw = NULL, continue = FALSE, reduce = FALSE,
+  diffusion = TRUE, diff_par = FALSE, cl_size = 2, sec_obj = "none",
+  cutoff = 1e-06, pcut = 1e-06)
 
-\S4method{simEnv}{Arena}(object, time, lrw = NULL, continue = F)
+\S4method{simEnv}{Arena}(object, time, lrw = NULL, continue = FALSE,
+  reduce = FALSE, diffusion = TRUE, diff_par = FALSE, cl_size = 2,
+  sec_obj = "none", cutoff = 1e-06, pcut = 1e-06)
 }
 \arguments{
 \item{object}{An object of class Arena or Eval.}
@@ -18,6 +22,20 @@ simEnv(object, time, lrw = NULL, continue = F)
 \item{lrw}{A numeric value needed by solver to estimate array size (by default lwr is estimated in the simEnv() by the function estimate_lrw())}
 
 \item{continue}{A boolean indicating whether the simulation should be continued or restarted.}
+
+\item{reduce}{A boolean indicating if the resulting \code{Eval} object should be reduced}
+
+\item{diffusion}{True if diffusion should be done (default on).}
+
+\item{diff_par}{True if diffusion should be run in parallel (default off).}
+
+\item{cl_size}{If diff_par is true then cl_size defines the number of cores to be used in parallelized diffusion.}
+
+\item{sec_obj}{character giving the secondary objective for a bi-level LP if wanted.}
+
+\item{cutoff}{value used to define numeric accuracy}
+
+\item{pcut}{A number giving the cutoff value by which value of objective function is considered greater than 0.}
 }
 \value{
 Returns an object of class \code{Eval} which can be used for subsequent analysis steps.
@@ -31,11 +49,11 @@ The returned object itself can be used for a subsequent simulation, due to the i
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
+           minweight=0.05,growtype="exponential") #initialize a bacterium
 arena <- Arena(n=20,m=20) #initialize the environment
-addOrg(arena,bac,amount=10) #add 10 organisms
-addSubs(arena,40) #add all possible substances
-eval <- simEnv(arena,10)
+arena <- addOrg(arena,bac,amount=10) #add 10 organisms
+arena <- addSubs(arena,40) #add all possible substances
+eval <- simEnv(arena,5)
 }
 \seealso{
 \code{\link{Arena-class}} and \code{\link{Eval-class}}

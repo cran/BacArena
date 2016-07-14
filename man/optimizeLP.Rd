@@ -7,10 +7,11 @@
 \title{Function for computing the linear programming according to the model structure}
 \usage{
 optimizeLP(object, lpob = object@lpobj, lb = object@lbnd,
-  ub = object@ubnd)
+  ub = object@ubnd, cutoff = 1e-06, j, sec_obj = "none")
 
 \S4method{optimizeLP}{Organism}(object, lpob = object@lpobj,
-  lb = object@lbnd, ub = object@ubnd)
+  lb = object@lbnd, ub = object@ubnd, cutoff = 1e-06, j,
+  sec_obj = "none")
 }
 \arguments{
 \item{object}{An object of class Organisms.}
@@ -20,18 +21,24 @@ optimizeLP(object, lpob = object@lpobj, lb = object@lbnd,
 \item{lb}{A numeric vector giving the constraint values of lower bounds.}
 
 \item{ub}{A numeric vector giving the constraint values of upper bounds.}
+
+\item{cutoff}{value used to define numeric accuracy while interpreting optimization results}
+
+\item{j}{debuging index to track cell}
+
+\item{sec_obj}{character giving the secondary objective for a bi-level LP if wanted.}
+}
+\value{
+Modified problem object according to the constraints and then solved with \code{optimizeProb}.
 }
 \description{
 The generic function \code{optimizeLP} implements a linear programming based on the problem structure and refined constraints.
 }
-\details{
-The problem object \code{lpob} is modified according to the constraints and then solved with \code{optimizeProb}.
-}
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 org <- Organism(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a organism
-optimizeLP(org)
+           minweight=0.05,growtype="exponential") #initialize a organism
+org@fbasol <- optimizeLP(org)
 }
 \seealso{
 \code{\link{Organism-class}}, \code{\link{optimizeProb}} and \code{\link{sysBiolAlg}}

@@ -7,10 +7,12 @@
 \title{Function for plotting spatial and temporal change of populations and/or concentrations}
 \usage{
 evalArena(object, plot_items = "Population", phencol = F, retdata = F,
-  time = (seq_along(object@simlist) - 1))
+  time = (seq_along(object@simlist) - 1), show_legend = TRUE,
+  legend_pos = "left")
 
 \S4method{evalArena}{Eval}(object, plot_items = "Population", phencol = F,
-  retdata = F, time = (seq_along(object@simlist) - 1))
+  retdata = F, time = (seq_along(object@simlist) - 1), show_legend = TRUE,
+  legend_pos = "left")
 }
 \arguments{
 \item{object}{An object of class Eval.}
@@ -22,6 +24,10 @@ evalArena(object, plot_items = "Population", phencol = F, retdata = F,
 \item{retdata}{A boolean variable indicating if the data used to generate the plots should be returned.}
 
 \item{time}{A numeric vector giving the simulation steps which should be plotted.}
+
+\item{show_legend}{A boolean variable indicating if a legend shuld be shown.}
+
+\item{legend_pos}{Position of the legend.}
 }
 \value{
 Returns several plots of the chosen plot items. Optional the data to generate the original plots can be returned.
@@ -35,11 +41,11 @@ If \code{phencol} is \code{TRUE} then different phenotypes of the same organism 
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
+           minweight=0.05,growtype="exponential") #initialize a bacterium
 arena <- Arena(n=20,m=20) #initialize the environment
-addOrg(arena,bac,amount=10) #add 10 organisms
-addSubs(arena,40) #add all possible substances
-eval <- simEnv(arena,10)
+arena <- addOrg(arena,bac,amount=10) #add 10 organisms
+arena <- addSubs(arena,40) #add all possible substances
+eval <- simEnv(arena,5)
 evalArena(eval)
 \dontrun{
 ## if animation package is installed a movie of the simulation can be stored:

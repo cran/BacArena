@@ -130,3 +130,18 @@ void diffuseSteveCpp(Rcpp::NumericMatrix y, double D, double h, double tstep){
   }
 }
 
+
+
+// [[Rcpp::export]]
+NumericMatrix updateSubmat(NumericMatrix submat, NumericMatrix sublb_red){
+  NumericMatrix submat_new(submat);
+  int nrow = sublb_red.nrow();
+  for(int i=0; i<nrow; i++){
+    int x = sublb_red(i, 0);
+    int y = sublb_red(i, 1);
+    //std::cout<<x<<","<<y<<"\n";
+    double new_sub_val = sublb_red(i, 2);
+    submat_new(x,y) = new_sub_val;
+  }
+  return(submat_new);
+}

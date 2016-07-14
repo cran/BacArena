@@ -5,7 +5,7 @@
 \alias{Arena-constructor}
 \title{Constructor of the S4 class \code{\link{Arena-class}}}
 \usage{
-Arena(Lx = 0.05, Ly = 0.05, n = 100, m = 100, ...)
+Arena(Lx = NULL, Ly = NULL, n = 100, m = 100, ...)
 }
 \arguments{
 \item{Lx}{A number giving the horizontal grid size in cm.}

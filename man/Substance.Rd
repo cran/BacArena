@@ -16,6 +16,8 @@ Structure of the S4 class \code{Substance} representing substances in the enviro
 
 \item{\code{name}}{A character vector representing the name of the substance.}
 
+\item{\code{id}}{A character vector representing the identifier of the substance.}
+
 \item{\code{difunc}}{A character vector ("pde","cpp" or "r") describing the function for diffusion.}
 
 \item{\code{difspeed}}{A number indicating the diffusion speed (given by cm^2/s).}

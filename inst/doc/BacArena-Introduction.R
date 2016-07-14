@@ -6,33 +6,33 @@ data(Ec_core)
 ecore <- Ec_core
 
 ## ------------------------------------------------------------------------
-bac <- Bac(ecore, growtype="exponential", cellarea=4.42, lyse=T)
+bac <- Bac(ecore)
 
 ## ------------------------------------------------------------------------
-arena = Arena(n=100, m=100, Lx=0.025, Ly=0.025)
+arena <- Arena(n=50, m=50)
 
 ## ------------------------------------------------------------------------
-addOrg(arena,bac,amount=1,x=50,y=50)
+arena <- addOrg(arena,bac,amount=1,x=25,y=25)
 
 ## ------------------------------------------------------------------------
-addSubs(arena, smax=0.05, unit='mM', difspeed=6.7e-6) 
+arena <- addSubs(arena, smax=0.05, unit='mM', difspeed=6.7e-6) 
 
 ## ------------------------------------------------------------------------
-eval <- simEnv(arena,time=20)
+eval <- simEnv(arena,time=10)
 
 ## ------------------------------------------------------------------------
 plotCurves2(eval)
 
 ## ------------------------------------------------------------------------
-evalArena(eval,time=20)
+evalArena(eval,time=10)
 
 ## ------------------------------------------------------------------------
 par(mar=c(1,1,1,1))
-evalArena(eval,c("Population","EX_glc(e)"),time=20)
+evalArena(eval,c("Population","EX_glc(e)"),time=10)
 
 ## ------------------------------------------------------------------------
 par(mar=c(1,1,1,1))
-evalArena(eval,c("Population","EX_glc(e)"),phencol=T,time=20)
+evalArena(eval,c("Population","EX_glc(e)"),phencol=T,time=10)
 
 ## ------------------------------------------------------------------------
 minePheno(eval)
@@ -41,20 +41,18 @@ minePheno(eval)
 pmat <- getPhenoMat(eval)
 
 ## ------------------------------------------------------------------------
-bac1 <- Bac(ecore,deathrate=0.1,type="ecoli_wt",
-           growthlimit=0.05,growtype="exponential")
+bac1 <- Bac(ecore,type="ecoli_wt")
 
 ## ------------------------------------------------------------------------
 ecore_aux <- changeBounds(ecore,"EX_o2(e)",lb=0)
-bac2 <- Bac(ecore_aux,deathrate=0.1,type="ecoli_aux",
-           growthlimit=0.05,growtype="exponential")
+bac2 <- Bac(ecore_aux,type="ecoli_aux", setExInf=FALSE)
 
 ## ------------------------------------------------------------------------
-arena = Arena(n=100, m=100, Lx=0.025, Ly=0.025)
-addOrg(arena,bac1,amount=1,x=25,y=50)
-addOrg(arena,bac2,amount=1,x=75,y=50)
-addSubs(arena,100)
-eval <- simEnv(arena,time=20)
+arena <- Arena(n=50, m=50)
+arena <- addOrg(arena,bac1,amount=1)
+arena <- addOrg(arena,bac2,amount=1)
+arena <- addSubs(arena,100)
+eval <- simEnv(arena,time=10)
 
 ## ------------------------------------------------------------------------
 plotCurves2(eval)
@@ -62,7 +60,7 @@ plotCurves2(eval)
 ## ------------------------------------------------------------------------
 par(mar=c(1,1,1,1))
 evalArena(eval,c("Population","EX_glc(e)","EX_ac(e)","EX_o2(e)"),
-          time=20)
+          time=10)
 
 ## ------------------------------------------------------------------------
 minePheno(eval)

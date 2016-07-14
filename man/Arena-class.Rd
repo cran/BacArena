@@ -26,6 +26,8 @@ Structure of the S4 class \code{Arena} to represent the environment in which Org
 
 \item{\code{mflux}}{A vector containing highly used metabolic reactions within the arena}
 
+\item{\code{shadow}}{A vector containing shadow prices of metabolites present in the arena}
+
 \item{\code{n}}{A number giving the horizontal size of the environment.}
 
 \item{\code{m}}{A number giving the vertical size of the environment.}
@@ -39,5 +41,11 @@ Structure of the S4 class \code{Arena} to represent the environment in which Org
 \item{\code{seed}}{An integer refering to the random number seed used to be reproducible}
 
 \item{\code{scale}}{A numeric defining the scale factor used for intern unit conversion.}
+
+\item{\code{models}}{A list containing Objects of class sybil::modelorg which represent the genome scale metabolic models}
+
+\item{\code{occupyM}}{A matrix indicating grid cells that are obstacles}
+
+\item{\code{sublb}}{A data matrix containing positions with amounts of substance for all organism}
 }}
 

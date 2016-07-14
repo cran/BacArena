@@ -28,7 +28,7 @@ Structure of the S4 class \code{Organism} representing the organisms present in 
 
 \item{\code{deathrate}}{A numeric value giving the factor by which the growth should be reduced in every iteration (unit: fg)}
 
-\item{\code{growthlimit}}{A numeric value giving the growth limit at which the organism dies.}
+\item{\code{minweight}}{A numeric value giving the growth limit at which the organism dies.}
 
 \item{\code{growtype}}{A character vector giving the functional type for growth (linear or exponential).}
 
@@ -38,6 +38,12 @@ Structure of the S4 class \code{Organism} representing the organisms present in 
 
 \item{\code{cellarea}}{A numeric value indicating the surface that one organism occupies (unit: mu cm^2)}
 
-\item{\code{cellweight}}{A numeric value giving the maximal dry weight of single organism (unit: fg)}
+\item{\code{maxweight}}{A numeric value giving the maximal dry weight of single organism (unit: fg)}
+
+\item{\code{cellweight_mean}}{A numeric giving the mean of starting biomass}
+
+\item{\code{cellweight_sd}}{A numeric giving the standard derivation of starting biomass}
+
+\item{\code{model}}{Object of class sybil::modelorg containging the genome sclae metabolic model}
 }}
 

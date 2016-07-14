@@ -7,10 +7,10 @@
 \title{Add substances to the environment}
 \usage{
 addSubs(object, smax = 0, mediac = object@mediac, difunc = "pde",
-  difspeed = 6.7e-06, unit = "mmol/cell", add = T)
+  difspeed = 6.7e-06, unit = "mmol/cell", add = TRUE)
 
 \S4method{addSubs}{Arena}(object, smax = 0, mediac = object@mediac,
-  difunc = "pde", difspeed = 6.7e-06, unit = "mmol/cell", add = T)
+  difunc = "pde", difspeed = 6.7e-06, unit = "mmol/cell", add = TRUE)
 }
 \arguments{
 \item{object}{An object of class Arena.}
@@ -36,10 +36,10 @@ If nothing but \code{object} is given, then all possible substrates are initiliz
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
+           minweight=0.05,growtype="exponential") #initialize a bacterium
 arena <- Arena(n=20,m=20) #initialize the environment
-addOrg(arena,bac,amount=10) #add 10 organisms
-addSubs(arena,20,c("EX_glc(e)","EX_o2(e)","EX_pi(e)")) #add substances glucose, oxygen and phosphate
+arena <- addOrg(arena,bac,amount=10) #add 10 organisms
+arena <- addSubs(arena,20,c("EX_glc(e)","EX_o2(e)","EX_pi(e)")) #add glucose, o2, pi
 }
 \seealso{
 \code{\link{Arena-class}} and \code{\link{changeSub}}

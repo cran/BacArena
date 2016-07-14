@@ -6,11 +6,10 @@
 \alias{addOrg,Arena-method}
 \title{Add individuals to the environment}
 \usage{
-addOrg(object, specI, amount, x = NULL, y = NULL, growth = NA,
-  mean = 0.489, sd = 0.132)
+addOrg(object, specI, amount, x = NULL, y = NULL, growth = NA)
 
 \S4method{addOrg}{Arena}(object, specI, amount, x = NULL, y = NULL,
-  growth = NA, mean = 0.489, sd = 0.132)
+  growth = NA)
 }
 \arguments{
 \item{object}{An object of class Arena.}
@@ -24,10 +23,6 @@ addOrg(object, specI, amount, x = NULL, y = NULL, growth = NA,
 \item{y}{A numeric vector giving the y positions of individuals on the grid.}
 
 \item{growth}{A numeric vector giving the starting biomass of the individuals.}
-
-\item{mean}{A numeric giving the mean of starting biomass (used for normal distribution) if growth is not defined}
-
-\item{sd}{A numeric giving the standard derivation of starting biomass (used for normal distribution) if growth is not defined}
 }
 \description{
 The generic function \code{addOrg} adds individuals to the environment.
@@ -38,9 +33,9 @@ The arguments \code{x} and \code{y} should be in the same length as the number o
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
+           minweight=0.05,growtype="exponential") #initialize a bacterium
 arena <- Arena(n=20,m=20) #initialize the environment
-addOrg(arena,bac,amount=10) #add 10 organisms
+arena <- addOrg(arena,bac,amount=10) #add 10 organisms
 }
 \seealso{
 \code{\link{Arena-class}} and \code{\link{Bac-class}}

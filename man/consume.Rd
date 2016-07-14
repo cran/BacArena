@@ -6,9 +6,9 @@
 \alias{consume,Organism-method}
 \title{Function to account for the consumption and production of substances}
 \usage{
-consume(object, sublb, cutoff = 1e-06, bacnum)
+consume(object, sublb, cutoff = 1e-06, bacnum, fbasol)
 
-\S4method{consume}{Organism}(object, sublb, cutoff = 1e-06, bacnum)
+\S4method{consume}{Organism}(object, sublb, cutoff = 1e-06, bacnum, fbasol)
 }
 \arguments{
 \item{object}{An object of class Organisms.}
@@ -17,7 +17,9 @@ consume(object, sublb, cutoff = 1e-06, bacnum)
 
 \item{cutoff}{A number giving the cutoff value by which value of objective function is considered greater than 0.}
 
-\item{bacnum}{integer indicating the number of bacteria individuals per gridcell}
+\item{bacnum}{Integer indicating the number of bacteria individuals per gridcell}
+
+\item{fbasol}{Problem object according to the constraints and then solved with \code{optimizeProb}.}
 }
 \value{
 Returns the updated vector containing the substance concentrations in the current position of the individual of interest.

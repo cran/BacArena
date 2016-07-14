@@ -6,14 +6,17 @@
 \alias{extractMed,Eval-method}
 \title{Function for re-constructing a medium concentrations from simulations}
 \usage{
-extractMed(object, time = length(object@medlist))
+extractMed(object, time = length(object@medlist), mediac = object@mediac)
 
-\S4method{extractMed}{Eval}(object, time = length(object@medlist))
+\S4method{extractMed}{Eval}(object, time = length(object@medlist),
+  mediac = object@mediac)
 }
 \arguments{
 \item{object}{An object of class Eval.}
 
 \item{time}{A number giving the simulation step of interest.}
+
+\item{mediac}{A character vector giving the names of substances, which should be added to the environment (the default takes all possible substances).}
 }
 \value{
 Returns a list containing concentration vectors of all medium substances.
@@ -27,11 +30,11 @@ Medium concentrations in slot \code{medlist} of an object of class \code{Eval} s
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
+           minweight=0.05,growtype="exponential") #initialize a bacterium
 arena <- Arena(n=20,m=20) #initialize the environment
-addOrg(arena,bac,amount=10) #add 10 organisms
-addSubs(arena,40) #add all possible substances
-eval <- simEnv(arena,10)
+arena <- addOrg(arena,bac,amount=10) #add 10 organisms
+arena <- addSubs(arena,40) #add all possible substances
+eval <- simEnv(arena,5)
 med5 <- extractMed(eval,5)
 }
 \seealso{

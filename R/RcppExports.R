@@ -17,3 +17,15 @@ diffuseSteveCpp <- function(y, D, h, tstep) {
     invisible(.Call('BacArena_diffuseSteveCpp', PACKAGE = 'BacArena', y, D, h, tstep))
 }
 
+updateSubmat <- function(submat, sublb_red) {
+    .Call('BacArena_updateSubmat', PACKAGE = 'BacArena', submat, sublb_red)
+}
+
+duplicateCpp <- function(orgdat, n, m, cellweight, occupyM) {
+    .Call('BacArena_duplicateCpp', PACKAGE = 'BacArena', orgdat, n, m, cellweight, occupyM)
+}
+
+movementCpp <- function(orgdat, n, m, occupyM) {
+    invisible(.Call('BacArena_movementCpp', PACKAGE = 'BacArena', orgdat, n, m, occupyM))
+}
+

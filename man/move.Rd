@@ -6,9 +6,9 @@
 \alias{move,Organism-method}
 \title{Function for random movement of organisms}
 \usage{
-move(object, pos, n, m, j)
+move(object, pos, n, m, j, occupyM)
 
-\S4method{move}{Organism}(object, pos, n, m, j)
+\S4method{move}{Organism}(object, pos, n, m, j, occupyM)
 }
 \arguments{
 \item{object}{An object of class Organism.}
@@ -20,6 +20,8 @@ move(object, pos, n, m, j)
 \item{m}{A number giving the vertical size of the environment.}
 
 \item{j}{The number of the iteration of interest.}
+
+\item{occupyM}{A matrix indicating grid cells that are obstacles}
 }
 \description{
 The generic function \code{move} implements a random movement in the Moore neighbourhood of an individual.
@@ -30,11 +32,11 @@ Organisms move in a random position the Moore neighbourhood, which is not occupi
 \examples{
 data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 bac <- Bac(Ec_core,deathrate=0.05,
-           growthlimit=0.05,growtype="exponential") #initialize a bacterium
+           minweight=0.05,growtype="exponential") #initialize a bacterium
 arena <- Arena(n=20,m=20) #initialize the environment
-addOrg(arena,bac,amount=10) #add 10 organisms
-addSubs(arena,40) #add all possible substances
-move(bac,n=20,m=20,j=1,pos=arena@orgdat[,c('x','y')])
+arena <- addOrg(arena,bac,amount=10) #add 10 organisms
+arena <- addSubs(arena,40) #add all possible substances
+move(bac,n=20,m=20,j=1,pos=arena@orgdat[,c('x','y')], occupyM=arena@occupyM)
 }
 \seealso{
 \code{\link{Organism-class}}, \code{\link{emptyHood}}

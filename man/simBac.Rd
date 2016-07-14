@@ -6,20 +6,28 @@
 \alias{simBac,Bac-method}
 \title{Function for one simulation iteration for objects of Bac class}
 \usage{
-simBac(object, arena, j, sublb, bacnum)
+simBac(object, arena, j, sublb, bacnum, sec_obj = "none", cutoff = 1e-06,
+  pcut = 1e-06)
 
-\S4method{simBac}{Bac}(object, arena, j, sublb, bacnum)
+\S4method{simBac}{Bac}(object, arena, j, sublb, bacnum, sec_obj = "none",
+  cutoff = 1e-06, pcut = 1e-06)
 }
 \arguments{
 \item{object}{An object of class Bac.}
 
 \item{arena}{An object of class Arena defining the environment.}
 
-\item{j}{The number of the iteration of interest.}
+\item{j}{The index of the organism of interest in orgdat.}
 
 \item{sublb}{A vector containing the substance concentrations in the current position of the individual of interest.}
 
 \item{bacnum}{integer indicating the number of bacteria individuals per gridcell}
+
+\item{sec_obj}{character giving the secondary objective for a bi-level LP if wanted.}
+
+\item{cutoff}{value used to define numeric accuracy.}
+
+\item{pcut}{A number giving the cutoff value by which value of objective function is considered greater than 0.}
 }
 \value{
 Returns the updated enivironment of the \code{population} parameter with all new positions of individuals on the grid and all new substrate concentrations.
