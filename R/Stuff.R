@@ -1,44 +1,4 @@
-globalVariables(c("Ec_core", "colpal1", "colpal2", "colpal3"))
-
-
-#color dictionary of 269 maximally distinct colors from all previous colors 
-colpal1 <- c("#000000","#FFFF00","#1CE6FF","#FF34FF","#FF4A46","#008941","#006FA6","#A30059","#FFDBE5","#7A4900","#0000A6","#63FFAC","#B79762","#004D43","#8FB0FF","#997D87","#5A0007","#809693","#FEFFE6","#1B4400","#4FC601","#3B5DFF","#4A3B53","#FF2F80","#61615A","#BA0900","#6B7900","#00C2A0","#FFAA92","#FF90C9","#B903AA","#D16100","#DDEFFF","#000035","#7B4F4B","#A1C299","#300018","#0AA6D8","#013349","#00846F","#372101","#FFB500","#C2FFED","#A079BF","#CC0744","#C0B9B2","#C2FF99","#001E09","#00489C","#6F0062","#0CBD66","#EEC3FF","#456D75","#B77B68","#7A87A1","#788D66","#885578","#FAD09F","#FF8A9A","#D157A0","#BEC459","#456648","#0086ED","#886F4C","#34362D","#B4A8BD","#00A6AA","#452C2C","#636375","#A3C8C9","#FF913F","#938A81","#575329","#00FECF","#B05B6F","#8CD0FF","#3B9700","#04F757","#C8A1A1","#1E6E00","#7900D7","#A77500","#6367A9","#A05837","#6B002C","#772600","#D790FF","#9B9700","#549E79","#FFF69F","#201625","#72418F","#BC23FF","#99ADC0","#3A2465","#922329","#5B4534","#FDE8DC","#404E55","#0089A3","#CB7E98","#A4E804","#324E72","#6A3A4C","#83AB58","#001C1E","#D1F7CE","#004B28","#C8D0F6","#A3A489","#806C66","#222800","#BF5650","#E83000","#66796D","#DA007C","#FF1A59","#8ADBB4","#1E0200","#5B4E51","#C895C5","#320033","#FF6832","#66E1D3","#CFCDAC","#D0AC94","#7ED379","#012C58","#7A7BFF","#D68E01","#353339","#78AFA1","#FEB2C6","#75797C","#837393","#943A4D","#B5F4FF","#D2DCD5","#9556BD","#6A714A","#001325","#02525F","#0AA3F7","#E98176","#DBD5DD","#5EBCD1","#3D4F44","#7E6405","#02684E","#962B75","#8D8546","#9695C5","#E773CE","#D86A78","#3E89BE","#CA834E","#518A87","#5B113C","#55813B","#E704C4","#00005F","#A97399","#4B8160","#59738A","#FF5DA7","#F7C9BF","#643127","#513A01","#6B94AA","#51A058","#A45B02","#1D1702","#E20027","#E7AB63","#4C6001","#9C6966","#64547B","#97979E","#006A66","#391406","#F4D749","#0045D2","#006C31","#DDB6D0","#7C6571","#9FB2A4","#00D891","#15A08A","#BC65E9","#FFFFFE","#C6DC99","#203B3C","#671190","#6B3A64","#F5E1FF","#FFA0F2","#CCAA35","#374527","#8BB400","#797868","#C6005A","#3B000A","#C86240","#29607C","#402334","#7D5A44","#CCB87C","#B88183","#AA5199","#B5D6C3","#A38469","#9F94F0","#A74571","#B894A6","#71BB8C","#00B433","#789EC9","#6D80BA","#953F00","#5EFF03","#E4FFFC","#1BE177","#BCB1E5","#76912F","#003109","#0060CD","#D20096","#895563","#29201D","#5B3213","#A76F42","#89412E","#1A3A2A","#494B5A","#A88C85","#F4ABAA","#A3F3AB","#00C6C8","#EA8B66","#958A9F","#BDC9D2","#9FA064","#BE4700","#658188","#83A485","#453C23","#47675D","#3A3F00","#061203","#DFFB71","#868E7E","#98D058","#6C8F7D","#D7BFC2","#3C3E6E","#D83D66","#2F5D9B","#6C5E46","#D25B88","#5B656C","#00B57F","#545C46","#866097","#365D25","#252F99","#00CCFF","#674E60","#FC009C","#92896B")
-
-# 20 optimally distinct colors
-colpal2 <- c("#C48736", "#CE54D1", "#96CED5", "#76D73C", "#403552", "#D4477D", "#5A7E36", "#D19EC4", "#CBC594", "#722A2D", "#D0CD47", "#CF4A31", "#7B6FD0", "#597873", "#6CD3A7", "#484125", "#C17E73", "#688EC1",  "#844081", "#7DD06F")
-
-# K. Kelly (1965): Twenty-two colors of maximum contrast. // Color Eng., 3(6), 1965
-colpal3 = c(
-  "#FFB300", # Vivid Yellow
-  "#803E75", # Strong Purple
-  "#FF6800", # Vivid Orange
-  "#A6BDD7", # Very Light Blue
-  "#C10020", # Vivid Red
-  "#CEA262", # Grayish Yellow
-  "#817066", # Medium Gray
-  "#007D34", # Vivid Green
-  "#F6768E", # Strong Purplish Pink
-  "#00538A", # Strong Blue
-  "#FF7A5C", # Strong Yellowish Pink
-  "#53377A", # Strong Violet
-  "#FF8E00", # Vivid Orange Yellow
-  "#B32851", # Strong Purplish Red
-  "#F4C800", # Vivid Greenish Yellow
-  "#7F180D", # Strong Reddish Brown
-  "#93AA00", # Vivid Yellowish Green
-  "#593315", # Deep Yellowish Brown
-  "#F13A13", # Vivid Reddish Orange
-  "#232C16" # Dark Olive Green
-)
-
-#26 distinct colors (Zeileis(2009): Escaping RGBland: Selecting Colors for Statistical Graphics)
-colpal4 <- c("#023fa5", "#7d87b9", "#bec1d4", "#d6bcc0", "#bb7784", "#8e063b", "#4a6fe3", "#8595e1", "#b5bbe3", "#e6afb9", "#e07b91", "#d33f6a", "#11c638", "#8dd593", "#c6dec7", "#ead3c6", "#f0b98d", "#ef9708", "#0fcfc0", "#9cded6", "#d5eae7", "#f3e1eb", "#f6c4e1", "#f79cd4")
-
-# 64 destinct colors
-colpal5 <- c("#000000","#00FF00","#0000FF","#FF0000","#01FFFE","#FFA6FE","#FFDB66","#006401","#010067","#95003A","#007DB5","#FF00F6","#FFEEE8","#774D00","#90FB92","#0076FF","#D5FF00","#FF937E","#6A826C","#FF029D","#FE8900","#7A4782","#7E2DD2","#85A900","#FF0056","#A42400","#00AE7E","#683D3B","#BDC6FF","#263400","#BDD393","#00B917","#9E008E","#001544","#C28C9F","#FF74A3","#01D0FF","#004754","#E56FFE","#788231","#0E4CA1","#91D0CB","#BE9970","#968AE8","#BB8800","#43002C","#DEFF74    ","#00FFC6","#FFE502","#620E00","#008F9C","#98FF52","#7544B1","#B500FF","#00FF78","#FF6E41","#005F39","#6B6882","#5FAD4E","#A75740","#A5FFD2","#FFB167","#009BFF","#E85EBE")
-
-# 64 destinc colors
-colpal6 <- c("FF0000", "00FF00", "0000FF", "FFFF00", "FF00FF", "00FFFF", "000000", "800000", "008000", "000080", "808000", "800080", "008080", "808080", "C00000", "00C000", "0000C0", "C0C000", "C000C0", "00C0C0", "C0C0C0", "400000", "004000", "000040", "404000", "400040", "004040", "404040", "200000", "002000", "000020", "202000", "200020", "002020", "202020", "600000", "006000", "000060", "606000", "600060", "006060", "606060", "A00000", "00A000", "0000A0", "A0A000", "A000A0", "00A0A0", "A0A0A0", "E00000", "00E000", "0000E0", "E0E000", "E000E0", "00E0E0", "E0E0E0")
+globalVariables(c("colpal1", "colpal3", "Ec_core"))
 
 # Diffusion pde solver function
 Diff2d <- function (t, y, parms){
@@ -153,9 +113,8 @@ estimate_lrw <- function(grid_n, grid_m){
 #' @examples
 #' \donttest{ 
 #' sim <- openArena()
-#' evalArena(sim, time=7, phencol = TRUE, 
-#'           plot_items=c("Population", "EX_o2(e)", "EX_for(e)",
-#'           "EX_glc(e)", "EX_for(e)"))
+#' evalArena(sim, time=5, phencol = TRUE, 
+#'           plot_items=c("Population", "EX_o2(e)", "EX_for(e)", "EX_glc(e)"))
 #'}
 openArena <- function(){
   data(Ec_core, envir = environment())
@@ -215,11 +174,13 @@ lsd <- function(y){lb=mean(y)-stats::sd(y); ifelse(lb<0,0,lb)}
 #' @return list of three ggplot object for further formating
 #'
 plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit="mmol", ret_data=FALSE, num_var=10){
+  if(is(simlist, "Eval")) simlist <- list(simlist)
   if(length(simlist) < 1 | !all(lapply(simlist, class) == "Eval") == TRUE) stop("Simlist is invalid.")
   if(sum(mediac %in% simlist[[1]]@mediac) != length(mediac)) stop("Substance does not exist in exchange reactions.")
   if(all(!is.null(time)) && (!time[1]<time[2] || !time[2]<length(simlist[[1]]@medlist))) stop("Time interval not valid")
   
   if(length(mediac)==0) mediac <- names(getVarSubs(simlist[[1]]))[1:num_var] # get the most varying substances (from first sim)
+  if(length(mediac) == 0) stop("All substance have a variance of zero.")
   all_df <- data.frame()
   for(i in seq_along(simlist)){
     object <- simlist[[i]]
@@ -254,20 +215,31 @@ plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit
          'mM'  ={all_df$value <- all_df$value * 10^{-12}/(simlist[[1]]@Lx*simlist[[1]]@Ly); ylabel=paste(ylabel,"mM")},
          stop("Wrong unit for concentration."))
   
-  q1 <- ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$Var1, y=all_df$value, x=all_df$Var2)) + ggplot2::geom_line(size=1) + ggplot2::facet_wrap(~all_df$replc)
-   
-  q2 <- ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$Var1, y=all_df$value, x=all_df$Var2)) + ggplot2::stat_summary(fun.y = mean, geom="line", size=1) + 
-        ggplot2::xlab("Time in h") + ggplot2::ylab(ylabel) + ggplot2::ggtitle("Mean substance curve")
-   
-  q3 <- ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$Var1, y=all_df$value, x=all_df$Var2)) +
-        ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes(fill=all_df$Var1), alpha=0.3, size=1) +
-        ggplot2::xlab("Time in h") + ggplot2::ylab(ylabel)
-   
-  q4 <- ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$Var1, y=all_df$value, x=all_df$Var2)) +
-        ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes(fill=all_df$Var1), alpha=0.3, size=1) +
-        ggplot2::facet_wrap(~all_df$Var1, scales="free_y") + ggplot2::xlab("Time in h") + ggplot2::ylab(ylabel) #+ 
+  colnames(all_df)[1:2] <- c("sub", "time")
+  plot_list <- list()
   
-  if(ret_data) return(all_df) else return(list(q1, q2, q3, q4))
+  if(length(simlist)>1){
+    q1 <- ggplot2::ggplot(all_df, ggplot2::aes_string(color="sub", y="value", x="time")) + ggplot2::geom_line(size=1) + ggplot2::facet_wrap(~replc)    
+    
+    q3 <- ggplot2::ggplot(all_df, ggplot2::aes_string(color="sub", y="value", x="time")) +
+      ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes_string(fill="sub"), alpha=0.3, size=1) +
+      ggplot2::xlab("Time in h") + ggplot2::ylab(ylabel)
+    
+    q4 <- ggplot2::ggplot(all_df, ggplot2::aes_string(color="sub", y="value", x="time")) +
+      ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes_string(fill="sub"), alpha=0.3, size=1) +
+      ggplot2::facet_wrap(~sub, scales="free_y") + ggplot2::xlab("Time in h") + ggplot2::ylab(ylabel) #+ 
+  plot_list <- list(q1, q3, q4)
+  }else{
+  q4 <- ggplot2::ggplot(all_df, ggplot2::aes_string(color="sub", x="time", y="value")) +
+    ggplot2::geom_line(size=1) + 
+    ggplot2::facet_wrap(~sub, scales="free_y") + ggplot2::xlab("Time in h") + ggplot2::ylab(ylabel) #+ 
+    plot_list <- list(q4)
+  }
+  q2 <- ggplot2::ggplot(all_df, ggplot2::aes_string(color="sub", y="value", x="time")) + ggplot2::stat_summary(fun.y = mean, geom="line", size=1) + 
+        ggplot2::xlab("Time in h") + ggplot2::ylab(ylabel) + ggplot2::ggtitle("Mean substance curve")
+  plot_list[[length(plot_list)+1]] <- q2
+  
+  if(ret_data) return(all_df) else return(plot_list)
 }
 
 
@@ -279,9 +251,9 @@ plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit
 #' 
 #' @param simlist A list of simulations (eval objects).
 #' @param time Vector with two entries defining start and end time
-#' @param bcol Vector with color that should be used
 #'
-plotGrowthCurve <-function(simlist, bcol=colpal3, time=c(NULL,NULL)){
+plotGrowthCurve <-function(simlist, time=c(NULL,NULL)){
+  if(is(simlist, "Eval")) simlist <- list(simlist)
   if(length(simlist) < 1 | !all(lapply(simlist, class) == "Eval") == TRUE) stop("Simlist is invalid.")
   if(all(!is.null(time)) && (!time[1]<time[2] || !time[2]<length(simlist[[1]]@simlist))) stop("Time interval not valid")
   
@@ -315,23 +287,28 @@ plotGrowthCurve <-function(simlist, bcol=colpal3, time=c(NULL,NULL)){
   cap <- cap * simlist[[1]]@tstep - 1
   if(length(cap)!=0){dat_cap <- data.frame(replc=seq_along(simlist), cap=cap)}
   
-  q1<-ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$species, y=all_df$value, x=all_df$time)) + 
-    ggplot2::geom_line(size=1) + ggplot2::facet_wrap(~replc) + 
-    ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals") +
-    ggplot2::scale_color_manual(values=bcol)
-  if(length(cap)!=0){q1 <- q1 + ggplot2::geom_vline(data=dat_cap, ggplot2::aes(xintercept=cap))}
-  
-  q2<-ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$species, y=all_df$value, x=all_df$time)) +
-    ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes(fill=all_df$species), alpha=0.3) + 
-    ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals") + ggplot2::scale_color_manual(values=bcol) + ggplot2::scale_fill_manual(values=bcol)
-  if(length(cap)!=0){q2 <- q2 + ggplot2::geom_vline(xintercept=min(cap))}
+  plot_list <- list()
+  if(length(simlist) > 1){ # first two plots only possible if replicates are available
+    q1<-ggplot2::ggplot(all_df, ggplot2::aes_string(color="species", y="value", x="time")) + 
+      ggplot2::geom_line(size=1) + ggplot2::facet_wrap(~replc) +
+      ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals")
+    if(length(cap)!=0){q1 <- q1 + ggplot2::geom_vline(data=dat_cap, ggplot2::aes(xintercept=cap))}
     
-  q3<-ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$species, y=all_df$value, x=all_df$time)) +
+    q2<-ggplot2::ggplot(all_df, ggplot2::aes_string(color="species", y="value", x="time")) +
+      ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes_string(fill="species"), alpha=0.3) + 
+      ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals")
+    if(length(cap)!=0){q2 <- q2 + ggplot2::geom_vline(xintercept=min(cap))}
+    
+    plot_list <- list(q1, q2)
+  }
+    
+  q3<-ggplot2::ggplot(all_df, ggplot2::aes_string(color="species", y="value", x="time")) +
     ggplot2::stat_summary(fun.y = mean, geom="line", size=1) + 
-    ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals") + ggplot2::scale_color_manual(values=bcol)
+    ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals")
   if(length(cap)!=0){q3 <- q3 + ggplot2::geom_vline(xintercept=min(cap))}
+  if(length(plot_list)==0) plot_list <- q3 else plot_list[[length(plot_list)+1]] <- q3
   
-  return(list(q1, q2, q3))
+  return(plot_list)
 }
 
 
@@ -616,6 +593,7 @@ plotInterNum <-function(simlist, title="Variation in number of interactions", si
 #' @param use_biomass If enabled then biomass is used instead of cell number
 #'
 plotAbundance <- function(simlist, time=c(NULL,NULL), col=colpal3, return_dat=F, use_biomass=F){
+  if(is(simlist, "Eval")) simlist <- list(simlist)
   all_df <- data.frame()
   for(i in seq_along(simlist)){
     object <- simlist[[i]]
@@ -641,7 +619,7 @@ plotAbundance <- function(simlist, time=c(NULL,NULL), col=colpal3, return_dat=F,
     names(abundances) <- levels(all_df$species)
     return(abundances)
   }else{
-    q <- ggplot2::ggplot(all_df, ggplot2::aes(factor(all_df$species), all_df$value)) + ggplot2::geom_boxplot(ggplot2::aes(color=factor(all_df$species), fill=factor(all_df$species)), alpha = 0.2, outlier.size=1) + 
+    q <- ggplot2::ggplot(all_df, ggplot2::aes_string("species", "value")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="species", fill="species"), alpha = 0.2, outlier.size=1) + 
       ggplot2::scale_fill_manual(values=col) + ggplot2::scale_color_manual(values=col) + 
       ggplot2::theme(axis.text.x =ggplot2::element_blank(), legend.title=ggplot2::element_blank(),axis.title.x = ggplot2::element_blank(),axis.title.y = ggplot2::element_blank())
     return(q)
@@ -755,10 +733,10 @@ plotSubUsage <- function(simlist, subs=list(), cutoff=1e-2, ret_data=FALSE){
   
   if(!ret_data) df <- df[which(abs(df$mflux) > cutoff),,drop = FALSE] # do not drop if date is used further
   
-  q1 <- ggplot2::ggplot(df, ggplot2::aes(x=df$time, y=df$mflux)) + ggplot2::geom_line(ggplot2::aes(col=df$spec), size=1) + ggplot2::facet_wrap(~df$sub, scales="free_y")+ ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+  q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="spec"), size=1) + ggplot2::facet_wrap(~sub, scales="free_y")+ ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
   
-  q2 <- ggplot2::ggplot(df, ggplot2::aes(factor(df$spec), df$mflux)) + ggplot2::geom_boxplot(ggplot2::aes(color=factor(df$spec), fill=factor(df$spec)), alpha=0.2) + 
-    ggplot2::facet_wrap(~sub, scales="free_y") + ggplot2::theme(axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+  q2 <- ggplot2::ggplot(df, ggplot2::aes_string("spec", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="spec", fill="spec"), alpha=0.2) + 
+    ggplot2::facet_wrap(~sub, scales="free_y") + ggplot2::theme(legend.title=ggplot2::element_blank(), axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
   if(ret_data) return(df) else return(list(q1, q2))
 }
 
@@ -805,10 +783,12 @@ plotSpecActivity <- function(simlist, subs=list(), var_nr=10, spec_list=NULL, re
     df <- df[which(df$sub %in% names(mflux_var)[1:var_nr]),]
   }
   
-  q1 <- ggplot2::ggplot(df, ggplot2::aes(x=df$time, y=df$mflux)) + ggplot2::geom_line(ggplot2::aes(col=df$sub), size=1) + ggplot2::facet_wrap(~spec, scales="free_y") + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+  q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="sub"), size=1) + 
+        ggplot2::facet_wrap(~spec, scales="free_y") + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
   
-  q2 <- ggplot2::ggplot(df, ggplot2::aes(factor(df$sub), df$mflux)) + ggplot2::geom_boxplot(ggplot2::aes(color=factor(df$sub), fill=factor(df$sub)), alpha=0.2) +  ggplot2::facet_wrap(~df$spec, scales="free_y") +
+  q2 <- ggplot2::ggplot(df, ggplot2::aes_string("sub", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="sub", fill="sub"), alpha=0.2) + 
     ggplot2::theme(axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+  if(length(levels(df$spec)) > 2) q2 <- q2 + ggplot2::facet_wrap(~spec, scales="free_y")
   
   if(ret_data) return(df) else return(list(q1, q2))
 }

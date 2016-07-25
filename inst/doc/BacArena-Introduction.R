@@ -1,57 +1,58 @@
-## ------------------------------------------------------------------------
+## ----results='hide', message=FALSE, warning=FALSE------------------------
 library("BacArena")
 
 ## ------------------------------------------------------------------------
 data(Ec_core)
-ecore <- Ec_core
 
 ## ------------------------------------------------------------------------
-bac <- Bac(ecore)
+bac <- Bac(Ec_core)
 
 ## ------------------------------------------------------------------------
-arena <- Arena(n=50, m=50)
+arena <- Arena(n=20, m=20)
+
+## ----results='hide', message=FALSE, warning=FALSE------------------------
+arena
 
 ## ------------------------------------------------------------------------
-arena <- addOrg(arena,bac,amount=1,x=25,y=25)
+arena <- addOrg(arena,bac,amount=20)
 
 ## ------------------------------------------------------------------------
-arena <- addSubs(arena, smax=0.05, unit='mM', difspeed=6.7e-6) 
+arena <- addDefaultMed(arena, bac) 
+arena <- addSubs(arena, smax=0.5, mediac="EX_glc(e)", unit="mM")
 
 ## ------------------------------------------------------------------------
-eval <- simEnv(arena,time=10)
+arena
+
+## ----results='hide', message=FALSE, warning=FALSE------------------------
+eval <- simEnv(arena,time=12)
 
 ## ------------------------------------------------------------------------
-plotCurves2(eval)
+getVarSubs(eval)
 
 ## ------------------------------------------------------------------------
-evalArena(eval,time=10)
+getSubHist(eval, "EX_glc(e)")
 
 ## ------------------------------------------------------------------------
-par(mar=c(1,1,1,1))
-evalArena(eval,c("Population","EX_glc(e)"),time=10)
+par(mfrow=c(1,2))
+plotCurves2(eval, legendpos = "topleft")
 
 ## ------------------------------------------------------------------------
-par(mar=c(1,1,1,1))
-evalArena(eval,c("Population","EX_glc(e)"),phencol=T,time=10)
+par(mfrow=c(2,5))
+evalArena(eval, show_legend = FALSE, time=1:10)
 
 ## ------------------------------------------------------------------------
-minePheno(eval)
+bac1 <- Bac(Ec_core,type="ecoli_wt")
 
 ## ------------------------------------------------------------------------
-pmat <- getPhenoMat(eval)
-
-## ------------------------------------------------------------------------
-bac1 <- Bac(ecore,type="ecoli_wt")
-
-## ------------------------------------------------------------------------
-ecore_aux <- changeBounds(ecore,"EX_o2(e)",lb=0)
+ecore_aux <- changeBounds(Ec_core, "EX_o2(e)",lb=0)
 bac2 <- Bac(ecore_aux,type="ecoli_aux", setExInf=FALSE)
 
-## ------------------------------------------------------------------------
-arena <- Arena(n=50, m=50)
-arena <- addOrg(arena,bac1,amount=1)
-arena <- addOrg(arena,bac2,amount=1)
-arena <- addSubs(arena,100)
+## ----results='hide', message=FALSE, warning=FALSE------------------------
+arena <- Arena(n=30, m=30)
+arena <- addOrg(arena,bac1,amount=20)
+arena <- addOrg(arena,bac2,amount=20)
+arena <- addDefaultMed(arena, bac1)
+arena <- addSubs(arena, smax=0.5, mediac="EX_glc(e)", unit="mM")
 eval <- simEnv(arena,time=10)
 
 ## ------------------------------------------------------------------------
@@ -60,9 +61,56 @@ plotCurves2(eval)
 ## ------------------------------------------------------------------------
 par(mar=c(1,1,1,1))
 evalArena(eval,c("Population","EX_glc(e)","EX_ac(e)","EX_o2(e)"),
-          time=10)
+          time=7)
 
 ## ------------------------------------------------------------------------
 minePheno(eval)
-print(getPhenoMat(eval))
+pmat <- getPhenoMat(eval)
+pmat[,which(colSums(pmat)>0)]
+
+## ----results='hide', message=FALSE, warning=FALSE------------------------
+library(parallel)
+cores <- ifelse(detectCores()>=2, 2, 1)
+cl <- makeCluster(cores, type="PSOCK")
+clusterExport(cl, "Ec_core")
+simlist <- parLapply(cl, 1:cores, function(i){
+  bac   <- BacArena::Bac(model=Ec_core)
+  arena <- BacArena::Arena(n=20, m=20)
+  arena <- BacArena::addOrg(arena, bac, amount=10)
+  arena <- BacArena::addDefaultMed(arena, bac)
+  sim   <- BacArena::simEnv(arena, time=5)
+})
+
+## ------------------------------------------------------------------------
+p <- plotGrowthCurve(simlist)
+p[[2]]
+
+## ------------------------------------------------------------------------
+p <- plotSubCurve(simlist)
+p[[3]]
+
+## ------------------------------------------------------------------------
+data(sihumi_test)
+eval <- sihumi_test
+
+## ------------------------------------------------------------------------
+p <- plotAbundance(eval)
+data(colpal)
+p + ggplot2::scale_color_manual(values=colpal3)
+
+## ------------------------------------------------------------------------
+p <- plotSpecActivity(eval)
+p[[2]]
+
+## ------------------------------------------------------------------------
+g <- findFeeding3(eval, time = 10, mets = c("EX_acald(e)", "EX_lac_D(e)") )
+
+## ------------------------------------------------------------------------
+p <- plotSubUsage(eval, subs = c("EX_sucr(e)", "EX_amylose300(e)", "EX_amylopect900(e)", 
+                                 "EX_cellb(e)", "EX_hdca(e)", "EX_ocdca(e)"))
+p[[2]]
+
+## ------------------------------------------------------------------------
+p <- plotShadowCost(eval, 6)
+p[[2]]
 

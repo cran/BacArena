@@ -1707,6 +1707,7 @@ setMethod("getVarSubs", "Eval", function(object, show_products=FALSE, show_subst
   #rownames(mat) <- gsub("\\(e\\)","", gsub("EX_","",mediac))
   rownames(mat) <- mediac
   mat_var  <- apply(mat, 1, stats::var)
+  if(length(mat_var[which(mat_var>0)]) == 0) return() # no substance having a variance > 0
   if(!(show_products || show_substrates)) {
     ret <- sort(mat_var[which(mat_var>0)], decreasing=TRUE)
     len_ret <- length(ret)
@@ -2436,6 +2437,7 @@ setMethod("findFeeding3", "Eval", function(object, time, mets){
       if(length(which(x>0))!=0){interact = rbind(interact,cbind(names(which(x>0)),j))}
     }
     interact = interact[-1,]
+    if(class(interact)=="character"){interact = t(as.matrix(interact))}
     if(nrow(interact)!=0){inter = rbind(inter,data.frame(prod=interact[,1],cons=interact[,2],met=i))}
   }
   g <- igraph::graph.data.frame(inter[,1:2], directed=TRUE)
