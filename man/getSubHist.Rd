@@ -6,16 +6,17 @@
 \alias{getSubHist,Eval-method}
 \title{Function to get timeline of a substance}
 \usage{
-getSubHist(object, sub)
+getSubHist(object, sub, unit = "fmol/cell")
 
-\S4method{getSubHist}{Eval}(object, sub)
+\S4method{getSubHist}{Eval}(object, sub, unit = "fmol/cell")
 }
 \arguments{
 \item{object}{An object of class Eval.}
 
-\item{sub}{Name of a substance.}
+\item{sub}{Vector with substances.}
+
+\item{unit}{Unit to be used}
 }
 \description{
 The generic function \code{getSubHist} returns list with amount of substance for each timestep
 }
-

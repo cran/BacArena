@@ -10,7 +10,7 @@ Structure of the S4 class \code{Arena} to represent the environment in which Org
 \section{Slots}{
 
 \describe{
-\item{\code{orgdat}}{A data frame collecting information about the accumulated growth, type, phenotype, x and y position for each individual in the environment.}
+\item{\code{orgdat}}{A data frame collecting information about the accumulated biomass, type, phenotype, x and y position for each individual in the environment.}
 
 \item{\code{specs}}{A list of organism types and their associated parameters.}
 
@@ -22,7 +22,7 @@ Structure of the S4 class \code{Arena} to represent the environment in which Org
 
 \item{\code{tstep}}{A number giving the time (in h) per iteration.}
 
-\item{\code{stir}}{A boolean variable indicating if environment should be stirred.}
+\item{\code{stir}}{A boolean variable indicating if environment should be stirred. If true, bacteria move to random positions within the environment and substances have a uniform concentration value.}
 
 \item{\code{mflux}}{A vector containing highly used metabolic reactions within the arena}
 

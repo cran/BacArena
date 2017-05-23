@@ -1,8 +1,11 @@
+## ----setup, message=FALSE, echo=FALSE------------------------------------
+
+
 ## ----results='hide', message=FALSE, warning=FALSE------------------------
 library("BacArena")
 
 ## ------------------------------------------------------------------------
-data(Ec_core)
+data("Ec_core")
 
 ## ------------------------------------------------------------------------
 bac <- Bac(Ec_core)
@@ -70,10 +73,11 @@ pmat[,which(colSums(pmat)>0)]
 
 ## ----results='hide', message=FALSE, warning=FALSE------------------------
 library(parallel)
+replicates <- 2
 cores <- ifelse(detectCores()>=2, 2, 1)
 cl <- makeCluster(cores, type="PSOCK")
 clusterExport(cl, "Ec_core")
-simlist <- parLapply(cl, 1:cores, function(i){
+simlist <- parLapply(cl, 1:replicates, function(i){
   bac   <- BacArena::Bac(model=Ec_core)
   arena <- BacArena::Arena(n=20, m=20)
   arena <- BacArena::addOrg(arena, bac, amount=10)
@@ -90,12 +94,11 @@ p <- plotSubCurve(simlist)
 p[[3]]
 
 ## ------------------------------------------------------------------------
-data(sihumi_test)
+data("sihumi_test")
 eval <- sihumi_test
 
 ## ------------------------------------------------------------------------
 p <- plotAbundance(eval)
-data(colpal)
 p + ggplot2::scale_color_manual(values=colpal3)
 
 ## ------------------------------------------------------------------------

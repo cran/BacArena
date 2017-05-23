@@ -13,7 +13,7 @@ changeOrg(object, neworgdat)
 \arguments{
 \item{object}{An object of class Arena.}
 
-\item{neworgdat}{A data frame with new information about the accumulated growth, type, phenotype, x and y position for each individual in the environment.}
+\item{neworgdat}{A data frame with new information about the accumulated biomass, type, phenotype, x and y position for each individual in the environment.}
 }
 \description{
 The generic function \code{changeOrg} changes organisms in the environment.
@@ -34,4 +34,3 @@ arena <- changeOrg(arena,neworgdat)
 \seealso{
 \code{\link{Arena-class}} and \code{\link{addOrg}}
 }
-

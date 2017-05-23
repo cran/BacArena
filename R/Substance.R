@@ -17,9 +17,10 @@
 #' @slot name A character vector representing the name of the substance.
 #' @slot id A character vector representing the identifier of the substance.
 #' @slot difunc A character vector ("pde","cpp" or "r") describing the function for diffusion.
-#' @slot difspeed A number indicating the diffusion speed (given by cm^2/s).
+#' @slot difspeed A number indicating the diffusion rate (given by cm^2/s). Default is set to glucose diffusion in a aqueous solution (6.7e-6 cm^2/s).
+#' @slot advspeed A number indicating the advection rate in x direction (given by cm/s).
 #' @slot diffgeometry Diffusion coefficient defined on all grid cells (initially set by constructor).
-#' @slot pde R-function that computes the values of the derivatives in the diffusion system
+#' @slot pde Choose diffusion transport reaction to be used (default is diffusion only)
 #' @slot boundS A number defining the attached amount of substance at the boundary (Warning: boundary-function must be set in pde!)
 setClass("Substance",
          representation(
@@ -29,6 +30,7 @@ setClass("Substance",
            id = "character",
            difunc = "character",
            difspeed = "numeric",
+           advspeed = "numeric",
            diffgeometry = "list",
            pde = "character",
            boundS = "numeric"
@@ -52,17 +54,47 @@ setClass("Substance",
 #' @name Substance-constructor
 #' 
 #' @param smax A number representing the start concentration of the substance for each grid cell in the environment. 
-#' @param difspeed A number indicating the diffusion speed (given by cm^2/s).
+#' @param difspeed A number indicating the diffusion speed in x and y direction (given by cm^2/s). For more complex setup define Dgrid.
+#' @param advspeed A number indicating the advection speed in x direction (given by cm/s). For more complex setup define Vgrid.
 #' @param n A number giving the horizontal size of the environment.
 #' @param m A number giving the vertical size of the environment.
 #' @param gridgeometry A list containing grid geometry parameter 
+#' @param occupyM A matrix indicating grid cells that are obstacles
+#' @param diffmat A matrix with spatial distributed initial concentrations (unit in fmol) (if not set, a homogenous matrix using smax is created)
+#' @param template True if diffmat matrix should be used as tempalte only (will be multiplied with smax to obtain cocentrations)
+#' @param Dgrid A matrix indicating the diffusion speed in x and y direction (given by cm^2/s).
+#' @param Vgrid A number indicating the advection speed in x direction (given by cm/s).
 #' @param ... Arguments of \code{\link{Substance-class}}
 #' @return Object of class \code{Substance}
-Substance <- function(n, m, smax, gridgeometry, difspeed=6.7e-6, ...){
-  diffmat <- Matrix::Matrix(smax, nrow=n, ncol=m, sparse=TRUE)
+Substance <- function(n, m, smax, gridgeometry, difspeed=6.7e-6, advspeed=0, occupyM, Dgrid=NULL, Vgrid=NULL, diffmat=NULL, template=FALSE, ...){
+  if(length(diffmat)==0){
+    diffmat <- Matrix::Matrix(smax, ncol=n, nrow=m, sparse=TRUE)
+  }else{
+      if(template){
+        diffmat <- Matrix::Matrix(smax * diffmat, sparse=T)
+      }else{
+        diffmat <- Matrix::Matrix(diffmat, sparse=T)
+      }
+  }
+  if(ncol(diffmat)!=n && nrow(diffmat)!=m){
+    print(paste("arena dimensions  :", n, m))
+    print(paste("diffmat dimension:", ncol(diffmat), nrow(diffmat)))
+    stop("Dimension of diffmat is invalid")
+  } 
   
-  Dgrid <- ReacTran::setup.prop.2D(value = difspeed, grid = gridgeometry$grid2D)
-  diffgeometry <- list(Dgrid=Dgrid)
+  new_occupyM <- apply(occupyM, 2, function(x)ifelse(x==0, 1, 0)) # switch 0 and zero for better processing
+  if(is.vector(new_occupyM)){new_occupyM=t(as.matrix(new_occupyM))} #conversion to matrix is important if n=1, because otherwise previous apply will output a vector
+  if(length(Dgrid)==0) {
+    Dgrid <- ReacTran::setup.prop.2D(value=difspeed, grid = gridgeometry$grid2D)
+    Dgrid <- lapply(Dgrid, # set obstacle cells to zero
+                    function(x) {
+                      x[1:nrow(new_occupyM),1:ncol(new_occupyM)] <- x[1:nrow(new_occupyM),1:ncol(new_occupyM)]*new_occupyM; x} )}
+  if(length(Vgrid)==0) {
+    Vgrid <- ReacTran::setup.prop.2D(value=0, y.value=advspeed, grid = gridgeometry$grid2D)
+    Vgrid <- lapply(Vgrid, # set obstacle cells to zero
+                    function(x) {x[1:nrow(new_occupyM),1:ncol(new_occupyM)] <- x[1:nrow(new_occupyM),1:ncol(new_occupyM)]*new_occupyM; x} )}
+  diffgeometry <- list(Dgrid=Dgrid, Vgrid=Vgrid)
+  
   new("Substance", smax=smax, diffmat=diffmat, difspeed=difspeed, diffgeometry=diffgeometry, ...)
 }
 
@@ -94,16 +126,11 @@ setMethod("difspeed", "Substance", function(object){return(object@difspeed)})
 #' @param object An object of class Substance.
 #' @details The diffusion is implemented by iterating through each cell in the grid and taking the cell with the lowest concentration in the Moore neighbourhood to update the concentration of both by their mean.
 #' @seealso \code{\link{Substance-class}} and \code{\link{diffusePDE}}
-#' @examples
-#' arena <- Arena(n=100, m=100, stir=FALSE, Lx=0.025, Ly=0.025)
-#' sub <- Substance(n=20,m=20,smax=40,name='test',difunc='r', 
-#'                  gridgeometry=arena@gridgeometry) #initialize test substance
-#' diffuseR(sub)
 setGeneric("diffuseR", function(object){standardGeneric("diffuseR")})
 #' @export
 #' @rdname diffuseR
 setMethod("diffuseR", "Substance", function(object){
-  smat <- as(object@diffmat, "matrix")
+  smat <- matrix(object@diffmat, nrow=nrow(object@diffmat), ncol=ncol(object@diffmat))
   smatn <- matrix(NA, nrow=dim(smat)[1]+2, ncol=dim(smat)[2]+2) #define environment with boundary conditions
   smatn[2:(dim(smat)[1]+1), 2:(dim(smat)[2]+1)] <- smat #put the values into the environment
   i <- sample(1:dim(smat)[1], dim(smat)[1])
@@ -152,18 +179,10 @@ setMethod("diffuseR", "Substance", function(object){
 #' @param lrw A numeric value needed by solver to estimate array size (by default lwr is estimated in simEnv() by the function estimate_lrw())
 #' @details Partial differential equation is solved to model 2d diffusion process in the arena.
 #' @seealso \code{\link{Substance-class}} and \code{\link{diffuseR}}
-#' @examples
-#' arena <- Arena(n=100, m=100, stir=FALSE, Lx=0.025, Ly=0.025)
-#' sub <- Substance(n=100,m=100,smax=0,name='test', difspeed=0.1, 
-#'                  gridgeometry=arena@gridgeometry) #initialize test substance
-#' sub@diffmat[ceiling(100/2),ceiling(100/2)] <- 40
-#' diffusePDE(sub, init_mat=as.matrix(sub@diffmat),
-#'            gridgeometry=arena@gridgeometry, tstep=arena@tstep)
 setGeneric("diffusePDE", function(object, init_mat, gridgeometry, lrw=NULL, tstep){standardGeneric("diffusePDE")})
 #' @export
 #' @rdname diffusePDE
 setMethod("diffusePDE", "Substance", function(object, init_mat, gridgeometry, lrw=NULL, tstep){
-  #init_mat <- as.matrix(object@diffmat)
   if(is.null(lrw)){
     lrw=estimate_lrw(gridgeometry$grid2D$x.N, gridgeometry$grid2D$y.N)}
   solution <- deSolve::ode.2D(y = init_mat, func = get(object@pde), times=c(1,1+tstep), parms = c(gridgeometry=gridgeometry, diffgeometry=object@diffgeometry, boundS=object@boundS),

@@ -7,10 +7,10 @@
 \title{Function for plotting the overall change as curves}
 \usage{
 plotCurves(object, medplot = object@mediac, retdata = F, remove = F,
-  legend = F)
+  legend = F, graph = T)
 
 \S4method{plotCurves}{Eval}(object, medplot = object@mediac, retdata = F,
-  remove = F, legend = F)
+  remove = F, legend = F, graph = T)
 }
 \arguments{
 \item{object}{An object of class Eval.}
@@ -22,6 +22,8 @@ plotCurves(object, medplot = object@mediac, retdata = F, remove = F,
 \item{remove}{A boolean variable indicating if substances, which don't change in their concentration should be removed from the plot.}
 
 \item{legend}{Boolean variable indicating if legend should be plotted}
+
+\item{graph}{True if graphic should be plotted.}
 }
 \value{
 Returns two graphs in one plot: the growth curves and the curves of concentration changes. Optional the data to generate the original plots can be returned.
@@ -45,4 +47,3 @@ plotCurves(eval)
 \seealso{
 \code{\link{Eval-class}} and \code{\link{Arena-class}}
 }
-

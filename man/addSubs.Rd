@@ -7,10 +7,14 @@
 \title{Add substances to the environment}
 \usage{
 addSubs(object, smax = 0, mediac = object@mediac, difunc = "pde",
-  difspeed = 6.7e-06, unit = "mmol/cell", add = TRUE)
+  pde = "Diff2d", difspeed = 6.7e-06, unit = "mmol/cell", add = TRUE,
+  diffmat = NULL, template = FALSE, Dgrid = NULL, Vgrid = NULL,
+  addAnyway = FALSE)
 
 \S4method{addSubs}{Arena}(object, smax = 0, mediac = object@mediac,
-  difunc = "pde", difspeed = 6.7e-06, unit = "mmol/cell", add = TRUE)
+  difunc = "pde", pde = "Diff2d", difspeed = 6.7e-06,
+  unit = "mmol/cell", add = TRUE, diffmat = NULL, template = FALSE,
+  Dgrid = NULL, Vgrid = NULL, addAnyway = FALSE)
 }
 \arguments{
 \item{object}{An object of class Arena.}
@@ -21,11 +25,23 @@ addSubs(object, smax = 0, mediac = object@mediac, difunc = "pde",
 
 \item{difunc}{A character vector ("pde","cpp" or "r") describing the function for diffusion.}
 
+\item{pde}{Choose diffusion transport reaction to be used (default is diffusion only)}
+
 \item{difspeed}{A number indicating the diffusion speed (given by number of cells per iteration).}
 
 \item{unit}{A character used as chemical unit to set the amount of the substances to be added (valid values are: mmol/cell, mmol/cm2, mmol/arena, mM)}
 
 \item{add}{A boolean variable defining whether the amount of substance should be summed or replaced}
+
+\item{diffmat}{A matrix with spatial distributed initial concentrations (if not set, a homogenous matrix using smax is created)}
+
+\item{template}{True if diffmat matrix should be used as tempalte only (will be multiplied with smax to obtain cocentrations)}
+
+\item{Dgrid}{A matrix indicating the diffusion speed in x and y direction (given by cm^2/s).}
+
+\item{Vgrid}{A number indicating the advection speed in x direction (given by cm/s).}
+
+\item{addAnyway}{If true substance will be added even if there is no connection (i.e. exchanges) with organisms}
 }
 \description{
 The generic function \code{addSubs} adds specific substances to the environment.
@@ -44,4 +60,3 @@ arena <- addSubs(arena,20,c("EX_glc(e)","EX_o2(e)","EX_pi(e)")) #add glucose, o2
 \seealso{
 \code{\link{Arena-class}} and \code{\link{changeSub}}
 }
-

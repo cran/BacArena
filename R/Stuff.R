@@ -1,4 +1,4 @@
-globalVariables(c("colpal1", "colpal3", "Ec_core"))
+globalVariables(c("colpal1", "colpal2", "colpal3", "Ec_core"))
 
 # Diffusion pde solver function
 Diff2d <- function (t, y, parms){
@@ -64,18 +64,20 @@ InfluxBoundDiff2d <- function (t, y, parms)  {
 
 ConstBoundAdvecDiff2d <- function (t, y, parms)  {
   # geometry values are in parms
-  #print("test")
   with (as.list(parms), {
-    vgrid <- setup.prop.2D(value = 0, y.value=1, grid = gridgeometry.grid2D)
     CONC  <- matrix(nrow = gridgeometry.grid2D$x.N, ncol = gridgeometry.grid2D$y.N, data = y)
-    dCONC <- tran.2D(CONC, grid = gridgeometry.grid2D, D.x=1, D.y=1, #D.grid = diffgeometry.Dgrid, 
-                     v.x = 0, v.y=1, #v.grid = vgrid,
+    dCONC <- tran.2D(CONC, grid = gridgeometry.grid2D, D.grid = diffgeometry.Dgrid, 
+                     v.grid = diffgeometry.Vgrid,
+                     
                      #C.y.down=rep(boundS, gridgeometry.grid2D$y.N),
                      #C.y.up=rep(boundS, gridgeometry.grid2D$y.N))$dC
                      
-                     #C.y.down=rep(1, gridgeometry.grid2D$x.N),
-                     flux.x.down=rep(boundS, gridgeometry.grid2D$y.N),
-                     flux.x.up=rep(boundS, gridgeometry.grid2D$y.N))$dC
+                     
+                     #C.y.down=rep(0, gridgeometry.grid2D$y.N),
+                     #C.y.up=rep(1, gridgeometry.grid2D$y.N),
+                     flux.y.up=rep(1, gridgeometry.grid2D$y.N),
+                     flux.x.down=rep(0, gridgeometry.grid2D$x.N),
+                     flux.x.up=rep(0, gridgeometry.grid2D$x.N))$dC
                      #flux.x.down=c(0,rep(-boundS, gridgeometry.grid2D$x.N-2),0),  # reduce edge bias
                      #flux.x.up=c(0, rep(boundS, gridgeometry.grid2D$x.N-2),0))$dC # "
     return (list(dCONC))
@@ -119,7 +121,7 @@ estimate_lrw <- function(grid_n, grid_m){
 openArena <- function(){
   data(Ec_core, envir = environment())
   bac = Bac(model=Ec_core, type="E. coli")
-  arena <- Arena(n=50, m=50, stir=F, Lx=0.0125, Ly=0.0125)
+  arena <- Arena(n=50, m=50)
   arena <- addOrg(arena, bac, amount=50)
   arena <- addSubs(arena, smax=0.05, unit="mM", difspeed=6.7e-6,
             mediac = c("EX_glc(e)", "EX_o2(e)", "EX_h2o(e)", "EX_pi(e)", "EX_nh4(e)", "EX_h(e)"))
@@ -176,11 +178,13 @@ lsd <- function(y){lb=mean(y)-stats::sd(y); ifelse(lb<0,0,lb)}
 plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit="mmol", ret_data=FALSE, num_var=10){
   if(is(simlist, "Eval")) simlist <- list(simlist)
   if(length(simlist) < 1 | !all(lapply(simlist, class) == "Eval") == TRUE) stop("Simlist is invalid.")
-  if(sum(mediac %in% simlist[[1]]@mediac) != length(mediac)) stop("Substance does not exist in exchange reactions.")
+  #if(sum(mediac %in% simlist[[1]]@mediac) != length(mediac)) stop("Substance does not exist in exchange reactions.")
   if(all(!is.null(time)) && (!time[1]<time[2] || !time[2]<length(simlist[[1]]@medlist))) stop("Time interval not valid")
-  
   if(length(mediac)==0) mediac <- names(getVarSubs(simlist[[1]]))[1:num_var] # get the most varying substances (from first sim)
   if(length(mediac) == 0) stop("All substance have a variance of zero.")
+  mediac = intersect(mediac,simlist[[1]]@mediac)
+  if(length(mediac)==0) stop("Substance does not exist in exchange reactions.")
+  
   all_df <- data.frame()
   for(i in seq_along(simlist)){
     object <- simlist[[i]]
@@ -218,6 +222,7 @@ plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit
   colnames(all_df)[1:2] <- c("sub", "time")
   plot_list <- list()
   
+  #levels(all_df$sub) = sort(simlist[[1]]@mediac)
   if(length(simlist)>1){
     q1 <- ggplot2::ggplot(all_df, ggplot2::aes_string(color="sub", y="value", x="time")) + ggplot2::geom_line(size=1) + ggplot2::facet_wrap(~replc)    
     
@@ -251,8 +256,10 @@ plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit
 #' 
 #' @param simlist A list of simulations (eval objects).
 #' @param time Vector with two entries defining start and end time
+#' @param ret_data Set true if data should be returned
+#' @param use_biomass If enabled then biomass is used instead of cell number
 #'
-plotGrowthCurve <-function(simlist, time=c(NULL,NULL)){
+plotGrowthCurve <-function(simlist, time=c(NULL,NULL), ret_data=FALSE, use_biomass=F){
   if(is(simlist, "Eval")) simlist <- list(simlist)
   if(length(simlist) < 1 | !all(lapply(simlist, class) == "Eval") == TRUE) stop("Simlist is invalid.")
   if(all(!is.null(time)) && (!time[1]<time[2] || !time[2]<length(simlist[[1]]@simlist))) stop("Time interval not valid")
@@ -261,10 +268,14 @@ plotGrowthCurve <-function(simlist, time=c(NULL,NULL)){
   for(i in seq_along(simlist)){
     object <- simlist[[i]]
     if(all(!is.null(time))) time_seq <- seq(time[1],time[2]) else time_seq <- seq_along(object@simlist)
-    list <- lapply(time_seq, function(i){
-      occ <- table(object@simlist[[i]]$type)
-      unlist(lapply(seq_along(object@specs), function(i){ifelse(i %in% names(occ),occ[paste(i)], 0)})) # ugly ;P
-    })
+    if(use_biomass){
+      list <- lapply(time_seq, function(i){
+        sapply(seq_along(object@specs), function(x){sum(object@simlist[[i]]$biomass[which(object@simlist[[i]]$type==x)])})})
+    }else{
+      list <- lapply(time_seq, function(i){
+        occ <- table(object@simlist[[i]]$type)
+        unlist(lapply(seq_along(object@specs), function(i){ifelse(i %in% names(occ),occ[paste(i)], 0)}))}
+      )}
     mat_bac  <- do.call(cbind, list)
     rownames(mat_bac) <- names(object@specs)
     colnames(mat_bac) <- time_seq
@@ -277,15 +288,16 @@ plotGrowthCurve <-function(simlist, time=c(NULL,NULL)){
   all_df$time <- all_df$time * simlist[[1]]@tstep # adjust time to hours
 
   # test if capacity is reached
-  cap <- unlist(lapply(simlist, function(sim){
+  cap <- sapply(seq_along(simlist), function(i){
+    sim <- simlist[[i]]
     capacity   <- sim@n*sim@m
     org_number <- lapply(sim@simlist, nrow)
     cap_reached<- which(org_number == capacity)
-    if(length(cap_reached)>0) min(cap_reached)
-    else NULL
-  }))
-  cap <- cap * simlist[[1]]@tstep - 1
+    if(length(cap_reached)>0) min(cap_reached) else NA
+  })
+  cap <- cap * simlist[[1]]@tstep
   if(length(cap)!=0){dat_cap <- data.frame(replc=seq_along(simlist), cap=cap)}
+  dat_cap <- dat_cap[which(!is.na(dat_cap$cap)),]
   
   plot_list <- list()
   if(length(simlist) > 1){ # first two plots only possible if replicates are available
@@ -297,7 +309,7 @@ plotGrowthCurve <-function(simlist, time=c(NULL,NULL)){
     q2<-ggplot2::ggplot(all_df, ggplot2::aes_string(color="species", y="value", x="time")) +
       ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes_string(fill="species"), alpha=0.3) + 
       ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals")
-    if(length(cap)!=0){q2 <- q2 + ggplot2::geom_vline(xintercept=min(cap))}
+    #if(length(cap)!=0){q2 <- q2 + ggplot2::geom_vline(xintercept=min(cap))}
     
     plot_list <- list(q1, q2)
   }
@@ -305,10 +317,14 @@ plotGrowthCurve <-function(simlist, time=c(NULL,NULL)){
   q3<-ggplot2::ggplot(all_df, ggplot2::aes_string(color="species", y="value", x="time")) +
     ggplot2::stat_summary(fun.y = mean, geom="line", size=1) + 
     ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals")
-  if(length(cap)!=0){q3 <- q3 + ggplot2::geom_vline(xintercept=min(cap))}
-  if(length(plot_list)==0) plot_list <- q3 else plot_list[[length(plot_list)+1]] <- q3
+  q4 <- ggplot2::ggplot(all_df, ggplot2::aes_string("time", "value")) +
+    ggplot2::stat_summary(fun.y = mean, geom="bar", width=1, position="fill", ggplot2::aes_string(fill="species"))
+  if(length(cap)!=0 & all(!is.na(cap))){q3 <- q3 + ggplot2::geom_vline(xintercept=min(cap))}
+  if(length(plot_list)==0){
+    if(length(simlist[[1]]@specs)>1) plot_list <- list(q3,q4) else plot_list <- q3
+  }else {plot_list[[length(plot_list)+1]] <- q3; plot_list[[length(plot_list)+2]] <- q4}     
   
-  return(plot_list)
+  if(ret_data) return(all_df) else return(plot_list)
 }
 
 
@@ -322,11 +338,14 @@ plotGrowthCurve <-function(simlist, time=c(NULL,NULL)){
 #' @param subs A vector of substance names that are used for phenotype clustering.
 #' @param phens If phencurve is given then phens specifies the phenotypes which sould be plotted again.
 #' @param time Vector with two entries defining start and end time
-#' @param ret_phengroups True if clustered phenotype groups should be returned. 
-#' @param cluster True phenotypes should be clustered/condensed. 
+#' @param cluster True if phenotypes should be clustered/condensed.
+#' @param inAll True if only phenotypes which occur in all replicates should be considered
 #' @param col Vector with color that should be used
+#' @param with_gc True if growth curve of organisms should be included
+#' @param return_dat Should data be returned? (default false)
 #'
-plotPhenCurve <- function(simlist, subs, phens=NULL, time=c(NULL,NULL), ret_phengroups=FALSE, cluster=TRUE, col=colpal3){
+plotPhenCurve <- function(simlist, subs, phens=NULL, time=c(NULL,NULL), cluster=TRUE, inAll=TRUE, col=colpal3, with_gc=FALSE, return_dat=FALSE){
+  if(is(simlist, "Eval")) simlist <- list(simlist)
   if(sum(subs %in% simlist[[1]]@mediac) != length(subs)) stop("Substances invalid.")
   if(length(simlist) < 1 | !all(lapply(simlist, class) == "Eval") == TRUE) stop("Simlist is invalid.")
   
@@ -411,84 +430,37 @@ plotPhenCurve <- function(simlist, subs, phens=NULL, time=c(NULL,NULL), ret_phen
     all_df <- rbind(all_df, mat_groups_m)
   }
   
-  all_df <- all_df[which(all_df$value!=0),] # important!
   all_df$time <- all_df$time * simlist[[1]]@tstep # adjust time to hours
   
-  # 4) plotting
-  p1 <- ggplot2::ggplot(all_df, ggplot2::aes(colour=all_df$Cphen, y=all_df$value, x=all_df$time)) + 
-    ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes(fill=all_df$Cphen), alpha=0.3, size=1) + 
+  if(inAll){ # only consider phenotypes occurring in all replicates
+    t_pr <- table(all_df[which(all_df$value!=0),]$Cphen, all_df[which(all_df$value!=0),]$replc)
+    #print(t_pr)  
+    phen_inall <- rownames(t_pr)[apply(t_pr, 1, function(row){all(row!=0)})]
+    all_df <- all_df[which(all_df$Cphen %in% phen_inall),]
+  }
+  
+  if(with_gc){ # add overall growth curves
+    gc_dat <- plotGrowthCurve(simlist, ret_data = TRUE)
+    phen_inall <- c(phen_inall, as.character(unique(gc_dat$species)))
+    names(gc_dat)[names(gc_dat)=="species"] <- "Cphen"
+    all_df <- rbind(all_df, gc_dat)
+  }
+  
+  #avg_occ <- round(rowsum(all_df$value, group=all_df$Cphen) / (length(simlist) * simlist[[1]]@tstep * length(simlist[[1]]@simlist)),3)
+  #print("average occurence of phenotypes"); print(avg_occ)
+  #sel_phen <- rownames(avg_occ)[which(avg_occ >= min_occ)]
+  #all_df <- all_df[which(all_df$Cphen %in% sel_phen),]
+  
+  p2 <- ggplot2::ggplot(all_df[which(all_df$value!=0),], ggplot2::aes_string(y="time", x="Cphen")) + ggplot2::geom_boxplot(ggplot2::aes_string(fill="Cphen")) + 
+    ggplot2::ylab("time [h]") + ggplot2::xlab("Phenotypes") + ggplot2::coord_flip() + ggplot2::scale_fill_manual(values=col)
+  
+  p1 <- ggplot2::ggplot(all_df[which(all_df$Cphen %in% phen_inall),], ggplot2::aes_string(colour="Cphen", y="value", x="time")) + 
+    ggplot2::stat_summary(geom="ribbon", fun.ymin="lsd", fun.ymax="usd", ggplot2::aes_string(fill="Cphen"), alpha=0.3, size=1) + 
     ggplot2::scale_fill_manual(values=col) + ggplot2::scale_colour_manual(values=col) +
-    ggplot2::xlab("time [h]") + ggplot2::ylab("number organism") + ggplot2::ggtitle("Phenotyp growth curve with standard deviation") + 
-    ggplot2::theme_bw(base_size = 30) +
-    ggplot2::theme(#legend.position='none',
-      legend.text= ggplot2::element_text(size=14),
-      legend.key=ggplot2::element_blank(),
-      legend.title =ggplot2::element_blank(),
-      axis.text.x = ggplot2::element_text(size=20),
-      axis.text.y = ggplot2::element_text(size=20),
-      axis.title.y = ggplot2::element_text(size=30,vjust=0.5),
-      #panel.grid.major =ggplot2::element_blank(),
-      panel.grid.minor =ggplot2::element_blank(),
-      panel.border = ggplot2::element_rect(colour='black',size=2, fill=NA),
-      axis.ticks = ggplot2::element_line(size=1,color='black'),
-      plot.title = ggplot2::element_text(size=20)) #15x5   
-  
-  p2 <- ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$Cphen, y=all_df$value, x=all_df$time)) + ggplot2::stat_summary(fun.y = mean, geom="line", size=1) +
-    ggplot2::stat_summary(fun.y = mean, geom="point", shape=3, size=2) + ggplot2::scale_colour_manual(values=col) + 
-    ggplot2::xlab("time [h]") + ggplot2::ylab("number organism") + ggplot2::ggtitle("Phenotyp growth curve with standard deviation") + 
-    ggplot2::theme_bw(base_size = 30) +
-    ggplot2::theme(#legend.position='none',
-      legend.text= ggplot2::element_text(size=14),
-      legend.key=ggplot2::element_blank(),
-      legend.title =ggplot2::element_blank(),
-      axis.text.x = ggplot2::element_text(size=20),
-      axis.text.y = ggplot2::element_text(size=20),
-      axis.title.y = ggplot2::element_text(size=30,vjust=0.5),
-      #panel.grid.major =ggplot2::element_blank(),
-      panel.grid.minor =ggplot2::element_blank(),
-      panel.border = ggplot2::element_rect(colour='black',size=2, fill=NA),
-      axis.ticks = ggplot2::element_line(size=1,color='black'),
-      plot.title = ggplot2::element_text(size=20)) #15x5   
-  
-  p3 <- ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$replc, group=all_df$replc,y=all_df$value, x=all_df$time)) + ggplot2::geom_line(size=1) + ggplot2::geom_point(size=2, shape=3) +
-    ggplot2::scale_colour_manual(values=col) + 
-    ggplot2::facet_wrap(~Cphen, nrow=4) +
-    ggplot2::xlab("time [h]") + ggplot2::ylab("number organism") + ggplot2::ggtitle("Comparison of phenotype growth curves") + 
-#    theme_bw(base_size = 30) +
-    ggplot2::theme_classic(base_size = 30) +
-    ggplot2::theme(#legend.position='none',
-      legend.text= ggplot2::element_text(size=14),
-      legend.key=ggplot2::element_blank(),
-      legend.title =ggplot2::element_blank(),
-      axis.text.x = ggplot2::element_text(size=15),
-      axis.text.y = ggplot2::element_text(size=20),
-      axis.title.y = ggplot2::element_text(size=30,vjust=0.5),
-      #panel.grid.major =ggplot2::element_blank(),
-      #panel.grid.minor =ggplot2::element_blank(),
- #     panel.border = ggplot2::element_rect(colour='black',size=2, fill=NA),
-      axis.ticks = ggplot2::element_line(size=1,color='black'),
-      plot.title = ggplot2::element_text(size=20)) #15x5   
+    ggplot2::xlab("Time in h") + ggplot2::ylab("Number of individuals") + ggplot2::ggtitle("Phenotype growth curve with standard deviation")
 
-  p4 <- ggplot2::ggplot(all_df, ggplot2::aes(color=all_df$Cphen, group=all_df$Cphen,y=all_df$value, x=all_df$time)) + ggplot2::geom_line(size=1) + ggplot2::geom_point(size=2, shape=3) +
-    ggplot2::scale_colour_manual(values=col) + 
-    ggplot2::facet_wrap(~replc) +
-    ggplot2::xlab("time [h]") + ggplot2::ylab("number organism") + ggplot2::ggtitle("Comparison of replicate growth curves") + 
-    ggplot2::theme_bw(base_size = 30) +
-    ggplot2::theme(#legend.position='none',
-      legend.text= ggplot2::element_text(size=14),
-      legend.key=ggplot2::element_blank(),
-      legend.title =ggplot2::element_blank(),
-      axis.text.x = ggplot2::element_text(size=20),
-      axis.text.y = ggplot2::element_text(size=20),
-      axis.title.y = ggplot2::element_text(size=30,vjust=0.5),
-      #panel.grid.major =ggplot2::element_blank(),
-      panel.grid.minor =ggplot2::element_blank(),
-      panel.border = ggplot2::element_rect(colour='black',size=2, fill=NA),
-      axis.ticks = ggplot2::element_line(size=1,color='black'),
-      plot.title = ggplot2::element_text(size=20)) #15x5   
-  
-  if(ret_phengroups & cluster) return(simlist_fac)
-  else(return(list(p1,p2,p3,p4)))
+  if(return_dat) {if(cluster) return(list(simlist_fac, all_df)) else return(all_df)}
+  else(return(list(p1,p2)))
 }
 
 
@@ -600,7 +572,7 @@ plotAbundance <- function(simlist, time=c(NULL,NULL), col=colpal3, return_dat=F,
     if(all(!is.null(time))) time_seq <- seq(time[1],time[2]) else time_seq <- seq_along(object@simlist)
     if(use_biomass){
       list <- lapply(time_seq, function(i){
-        sapply(seq_along(object@specs), function(x){sum(object@simlist[[i]]$growth[which(object@simlist[[i]]$type==x)])})})
+        sapply(seq_along(object@specs), function(x){sum(object@simlist[[i]]$biomass[which(object@simlist[[i]]$type==x)])})})
     }else{
       list <- lapply(time_seq, function(i){
         occ <- table(object@simlist[[i]]$type)
@@ -628,7 +600,7 @@ plotAbundance <- function(simlist, time=c(NULL,NULL), col=colpal3, return_dat=F,
 
 #' @title Plot substance variations
 #'
-#' @description The function \code{plotSubVar} takes a list of simulations and return a barplot with most varying substances
+#' @description The function \code{plotSubVar} takes a list of simulations and returns a barplot with most varying substances
 #' @export
 #' @rdname plotSubVar
 #' 
@@ -710,9 +682,10 @@ plotFluxVar <- function(simlist, metsel){
 #' @param cutoff Total values below cutoff will be dismissed
 #' @param ret_data Set true if data should be returned
 #' @details Returns ggplot objects
-plotSubUsage <- function(simlist, subs=list(), cutoff=1e-2, ret_data=FALSE){
+plotSubUsage <- function(simlist, subs=vector(), cutoff=1e-2, ret_data=FALSE){
   
   if(is(simlist, "Eval")) simlist <- list(simlist)
+  subs = intersect(subs, simlist[[1]]@mediac)
   if(length(subs)==0){ subs <- names(getVarSubs(simlist[[1]], size = 9))
   }else if(sum(subs %in% simlist[[1]]@mediac) != length(subs)) stop("Substance do not exist in arena")
   
@@ -731,12 +704,23 @@ plotSubUsage <- function(simlist, subs=list(), cutoff=1e-2, ret_data=FALSE){
     }
   }
   
-  if(!ret_data) df <- df[which(abs(df$mflux) > cutoff),,drop = FALSE] # do not drop if date is used further
+  if(nrow(df)==0) stop("None of the substances you provided are used by the community.")
+  if(!ret_data) df <- df[which(abs(df$mflux) > cutoff),,drop = FALSE] # do not drop if data is used further
   
-  q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="spec"), size=1) + ggplot2::facet_wrap(~sub, scales="free_y")+ ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
   
-  q2 <- ggplot2::ggplot(df, ggplot2::aes_string("spec", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="spec", fill="spec"), alpha=0.2) + 
-    ggplot2::facet_wrap(~sub, scales="free_y") + ggplot2::theme(legend.title=ggplot2::element_blank(), axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+  if(length(levels(df$sub))>1){
+    q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="spec"), size=1) + 
+      ggplot2::facet_wrap(~sub, scales="free_y")+ ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+    
+    q2 <- ggplot2::ggplot(df, ggplot2::aes_string("spec", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="spec", fill="spec"), alpha=0.2) + 
+      ggplot2::facet_wrap(~sub, scales="free_y") + ggplot2::theme(legend.title=ggplot2::element_blank(), axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+  }else{ # if less than 2 substances are found than do not use facet_wrap
+    q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="spec"), size=1) + 
+      ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+    
+    q2 <- ggplot2::ggplot(df, ggplot2::aes_string("spec", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="spec", fill="spec"), alpha=0.2) + 
+      ggplot2::theme(legend.title=ggplot2::element_blank(), axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+  } 
   if(ret_data) return(df) else return(list(q1, q2))
 }
 
@@ -758,6 +742,8 @@ plotSpecActivity <- function(simlist, subs=list(), var_nr=10, spec_list=NULL, re
   if(is(simlist, "Eval")) simlist <- list(simlist)
   if(length(subs)==0) {subs_tocheck <- names(getVarSubs(simlist[[1]]))
   }else subs_tocheck <- subs
+  if(length(spec_list)>0) #If spec list is provided, then the system takes the index numbers and replaces them with their real names like in line 742
+  {for (i in (spec_list)) {spec_list[which(spec_list==i)]<-names(simlist[[1]]@specs)[i]}}
   if(length(spec_list)==0) spec_list <- names(simlist[[1]]@specs)
   
   df <- data.frame(spec=as.character(), sub=as.character(), mflux=as.numeric(), time=as.integer())
@@ -782,14 +768,150 @@ plotSpecActivity <- function(simlist, subs=list(), var_nr=10, spec_list=NULL, re
     mflux_var <- sort(mflux_var, decreasing = TRUE)
     df <- df[which(df$sub %in% names(mflux_var)[1:var_nr]),]
   }
-  
+  df$time = df$time-1
   q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="sub"), size=1) + 
         ggplot2::facet_wrap(~spec, scales="free_y") + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
-  
+  # q1_5 is the same as q2 but contains "+ ggplot2::facet_wrap(~spec, scales="free_y")" to plot the variance for each spec.   
+  q1_5 <- ggplot2::ggplot(df, ggplot2::aes_string("sub", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="sub", fill="sub"), alpha=0.2) + 
+    ggplot2::theme(axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)") + ggplot2::facet_wrap(~spec, scales="free_y")
+    
   q2 <- ggplot2::ggplot(df, ggplot2::aes_string("sub", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="sub", fill="sub"), alpha=0.2) + 
     ggplot2::theme(axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
-  if(length(levels(df$spec)) > 2) q2 <- q2 + ggplot2::facet_wrap(~spec, scales="free_y")
+  #if(length(levels(df$spec)) > 1) q2 <- q2 + ggplot2::facet_wrap(~spec, scales="free_y") Not needed anymore because it is included in q1_5
   
-  if(ret_data) return(df) else return(list(q1, q2))
+  if(ret_data) return(df) else return(list(q1, q1_5, q2))
 }
 
+
+#' @title Function to plot population level minimum and maximum flux from alternative optimal solutions obtained by FVA
+#'
+#' @description The generic function \code{plotFVA} plots population level flux results obtained from function fluxVarSim
+#' @export
+#' @rdname plotFVA
+#'
+#' @param fvares results of FVA results to plot, obtained from function fluxVarSim
+#' @param mediac List with substances.
+#' @details Returns ggplot objects
+plotFVA = function(fvares, mediac){
+  for(i in 1:length(fvares)){
+    fvares[[i]] = fvares[[i]][mediac,]
+  }
+  basedat = data.frame()
+  for(i in 1:length(fvares)){
+    basedat = rbind(basedat,
+                    data.frame(rownames(fvares[[i]]),
+                               fvares[[i]],
+                               rep(i,nrow(fvares[[i]]))))
+  }
+  colnames(basedat) = c("met","min","max","time")
+  fvag = ggplot2::ggplot(basedat, ggplot2::aes_string(x="time", y="min")) +
+    ggplot2::geom_ribbon(ggplot2::aes_string(ymin="min",ymax="max",color="met",fill="met"),alpha=0.2) +
+    ggplot2::xlab("Time in h") + ggplot2::ylab("Population flux")
+  return(fvag)
+}
+
+
+#' @title Function to plot reaction activity for every species
+#'
+#' @description The generic function \code{plotReaActivity} displays the usage of reactions for all species
+#' @export
+#' @rdname plotReaActivity
+#'
+#' @param simlist An object of class Eval or a list with objects of class Eval.
+#' @param reactions List of reaction names
+#' @param spec_list List of species names to be considered (default all)
+#' @param ret_data Set true if data should be returned
+#' @details Returns ggplot objects
+plotReaActivity <- function(simlist, reactions=list(), spec_list=NULL, ret_data=FALSE){
+  
+  if(is(simlist, "Eval")) simlist <- list(simlist)
+  
+  if(length(reactions)==0) stop("You have to define reactions")
+  if(length(spec_list)==0) spec_list <- names(simlist[[1]]@specs)
+  
+  df <- data.frame(spec=as.character(), rea=as.character(), mflux=as.numeric(), time=as.integer())
+  
+  for(i in seq_along(simlist)){
+    object <- simlist[[i]]  
+    for(t in seq_along(object@mfluxlist)){
+      for(spec in spec_list){
+        if(length(intersect(reactions, names(object@mfluxlist[[i]][[spec]]))) > 0 &  length(names(object@mfluxlist[[t]][[spec]])) > 0 ){
+          mflux=object@mfluxlist[[t]][[spec]][which(names(object@mfluxlist[[t]][[spec]]) %in% reactions)]
+          df <- rbind(df, data.frame(spec=spec, rea=names(mflux), mflux=unname(mflux), time=t, replc=i))
+        }
+      }
+    }
+  }
+  if(length(levels(df$rea))>=1){
+    q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="rea"), size=1) + 
+      ggplot2::facet_wrap(~spec, scales="free_y") + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+    
+    q2 <- ggplot2::ggplot(df, ggplot2::aes_string("rea", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="rea", fill="rea"), alpha=0.2) + 
+      ggplot2::theme(axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+    if(length(levels(df$spec)) > 2) q2 <- q2 + ggplot2::facet_wrap(~spec, scales="free_y")
+    
+    df2 <- plyr::ddply(df, c("time","rea"), function(tmp) c("mflux"=sum(tmp$mflux) ))
+    q3 <- ggplot2::ggplot(df2, ggplot2::aes_string("time", "rea")) + ggplot2::geom_tile(ggplot2::aes_string(fill = "mflux")) 
+  }else{ # if less than 2 substances are found than do not use facet_wrap
+    q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="spec"), size=1) + 
+      ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+    
+    q2 <- ggplot2::ggplot(df, ggplot2::aes_string("spec", "mflux")) + ggplot2::geom_boxplot(ggplot2::aes_string(color="spec", fill="spec"), alpha=0.2) + 
+      ggplot2::theme(legend.title=ggplot2::element_blank(), axis.text.x =ggplot2::element_blank()) + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
+    
+    df2 <- plyr::ddply(df, c("time","rea"), function(tmp) c("mflux"=sum(tmp$mflux) ))
+    q3 <- ggplot2::ggplot(df2, ggplot2::aes_string("time", "rea")) + ggplot2::geom_tile(ggplot2::aes_string(fill = "mflux"))
+  } 
+
+  if(ret_data) return(df) else return(list(q1, q2, q3))
+}
+
+#' @title Function for investigation of cross feeding patterns of replicate simulations
+#'
+#' @description The generic function \code{findFeeding3rep} investigates the cross feeding patterns of replicate simulations
+#' @export
+#' @rdname findFeeding3rep
+#' @importFrom igraph V E graph.data.frame layout.circle
+#' 
+#' @param simlist A list with objects of class Eval.
+#' @param time A numeric vector giving the simulation steps which should be plotted. 
+#' @param mets Character vector of substance names which should be considered
+#' @param plot Should the graph also be plotted?
+#' @param mfunction Function by which the replicate simulations should be combined e.g. "mean" or "median"
+#' @return Graph (igraph)
+findFeeding3rep <- function(simlist, time, mets, plot=TRUE, mfunction="mean"){
+  time = time+1
+  mfluxmatrep = list()
+  for(i in 1:length(simlist)){
+    mets = intersect(simlist[[i]]@mediac,as.character(mets))
+    mflux = simlist[[i]]@mfluxlist[[time]]
+    mfluxmat = do.call(cbind,lapply(mflux,function(x){return(ifelse(is.na(x[mets]),0,x[mets]))}))
+    rownames(mfluxmat) = mets
+    mfluxmatrep[[i]] = mfluxmat
+  }
+  mfluxmat = matrix(apply(do.call(cbind,lapply(mfluxmatrep,as.vector)),1,mfunction),
+                    nrow=nrow(mfluxmat),ncol=ncol(mfluxmat),
+                    dimnames=list(rownames(mfluxmat),colnames(mfluxmat)))
+  inter = data.frame()
+  for(i in rownames(mfluxmat)){
+    x = mfluxmat[i,]
+    interact = matrix(0,ncol=2,nrow=1)
+    for(j in names(which(x<0))){
+      if(length(which(x>0))!=0){interact = rbind(interact,cbind(names(which(x>0)),j))}
+    }
+    interact = interact[-1,]
+    if(class(interact)=="character"){interact = t(as.matrix(interact))}
+    if(nrow(interact)!=0){inter = rbind(inter,data.frame(prod=interact[,1],cons=interact[,2],met=i))}
+  }
+  if(any(dim(inter)==0)) {
+    warning("No crossfeeding found. Try other metaboites or time points.")
+    g <- igraph::make_empty_graph()
+    return(list(inter,g))
+  }
+  g <- igraph::graph.data.frame(inter[,1:2], directed=TRUE)
+  l <- igraph::layout.kamada.kawai(g)
+  plot(g,edge.color=grDevices::rainbow(length(levels(inter$met)))[as.numeric(inter$met)],
+       edge.width=3,edge.arrow.size=0.8,vertex.color=1:length(igraph::V(g)),layout=l)
+  legend("bottomright",legend=levels(inter$met),col=grDevices::rainbow(length(levels(inter$met))), pch=19, cex=0.7)
+  return(list(inter,g))
+}

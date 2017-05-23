@@ -1,7 +1,7 @@
 Package: BacArena
 Title: Modeling Framework for Cellular Communities in their
         Environments
-Version: 1.5.1
+Version: 1.6
 Authors@R: c( person("Eugen", "Bauer", , "eugen.bauer@uni.lu", role = c("aut")), 
               person("Johannes", "Zimmermann", , "j.zimmermann@iem.uni-kiel.de", role = c("aut", "cre")))
 Author: Eugen Bauer [aut],
@@ -17,14 +17,14 @@ BugReports: https://github.com/euba/BacArena/issues
 Depends: R (>= 3.0.0), sybil (>= 1.3.0), ReacTran (>= 1.4.2), deSolve
         (>= 1.12), Matrix (>= 1.2)
 Imports: igraph, methods, utils, stats, graphics, ggplot2, reshape2,
-        glpkAPI, Rcpp
-Suggests: sybilSBML, knitr, rmarkdown
+        glpkAPI, plyr, Rcpp
+Suggests: sybilSBML, parallel, knitr, rmarkdown
 LinkingTo: Rcpp, RcppArmadillo, RcppEigen
 License: GPL-3
 VignetteBuilder: knitr
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1
 LazyData: true
 NeedsCompilation: yes
-Packaged: 2016-07-25 16:40:41.122 UTC; jo
+Packaged: 2017-05-23 13:24:32.848 UTC; jo
 Repository: CRAN
-Date/Publication: 2016-07-25 20:31:39
+Date/Publication: 2017-05-23 17:28:04 UTC

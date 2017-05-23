@@ -9,6 +9,7 @@
 #' @exportClass Organism
 #' @import sybil
 #' @importFrom stats na.omit
+#' @rdname Organism
 #'
 #' @slot lbnd A numeric vector containing the lower bounds of the model structure.
 #' @slot ubnd A numeric vector containing the upper bounds of the model structure.
@@ -18,16 +19,17 @@
 #' @slot fbasol A list with the solutions of the flux balance analysis.
 #' @slot lyse A boolean variable indicating if the organism should lyse after death.
 #' @slot feat A list containing conditional features for the object (contains at the momement only biomass components for lysis).
-#' @slot deathrate A numeric value giving the factor by which the growth should be reduced in every iteration (unit: fg)
-#' @slot minweight A numeric value giving the growth limit at which the organism dies.
+#' @slot deathrate A numeric value giving the factor by which the growth should be reduced in every iteration (default (E.coli): 0.21 pg)
+#' @slot minweight A numeric value giving the growth limit at which the organism dies. (default (E.coli): 0.083 pg)
 #' @slot growtype A character vector giving the functional type for growth (linear or exponential).
 #' @slot kinetics A List containing Km and v_max values for each reactions.
 #' @slot speed A integer vector representing the speed by which bacterium is moving (given by cell per iteration).
-#' @slot cellarea A numeric value indicating the surface that one organism occupies (unit: mu cm^2)
-#' @slot maxweight A numeric value giving the maximal dry weight of single organism (unit: fg)
-#' @slot cellweight_mean A numeric giving the mean of starting biomass 
-#' @slot cellweight_sd A numeric giving the standard derivation of starting biomass 
+#' @slot cellarea A numeric value indicating the surface that one organism occupies (default (E.coli): 4.42 mu_m^2)
+#' @slot maxweight A numeric value giving the maximal dry weight of single organism (default (E.coli): 1.172 pg)
+#' @slot cellweight_mean A numeric giving the mean of starting biomass (default (E.coli): 0.489 pg)
+#' @slot cellweight_sd A numeric giving the standard derivation of starting biomass (default (E.coli): 0.132 pg)
 #' @slot model Object of class sybil::modelorg containging the genome sclae metabolic model
+#' @slot algo Algorithm to be used during optimization (default fba)
 setClass("Organism",
          representation(
            lbnd="numeric",
@@ -47,7 +49,8 @@ setClass("Organism",
            cellweight_mean = "numeric",
            cellweight_sd = "numeric",
            speed="numeric",
-           model="modelorg"
+           model="modelorg",
+           algo="character"
          ),
          prototype(
            deathrate = 0.21,
@@ -66,9 +69,8 @@ setClass("Organism",
 ###################################### CONSTRUCTOR #####################################################
 ########################################################################################################
 
-#' Constructor of the S4 class \code{Organism}
+#' Constructor of the S4 class \code{\link{Organism-class}}
 #' 
-#' The constructor to get a new object of class \code{Organism}
 #' @export
 #' @name Organism-constructor
 #' 
@@ -86,6 +88,16 @@ setClass("Organism",
 #' @return Object of class Organism
 Organism <- function(model, algo="fba", ex="EX_", ex_comp=NA, csuffix="\\[c\\]", esuffix="\\[e\\]", lyse=FALSE, feat=list(), 
                      typename=NA, setExInf=TRUE, ...){
+  if(all(model@obj_coef==0)){
+    exchanges_pos <- sybil::findExchReact(model)@react_pos
+    pot_biomass_pos <- grep("biom", model@react_id, ignore.case = TRUE)
+    pot_biomass_pos <- setdiff(pot_biomass_pos, exchanges_pos) # exclude exchange reactions
+    if(length(pot_biomass_pos)==0) stop("No objection function set in model")
+    print("No objective function set, try set automatically ..")
+    print(paste("found:", model@react_id[pot_biomass_pos]))
+    print(paste("set new biomass function:", model@react_id[pot_biomass_pos[1]]))
+    model@obj_coef[pot_biomass_pos[1]] <- 1
+  }
   if(is.na(typename)) typename <- sybil::mod_desc(model)
   rxname = sybil::react_id(model)
   lpobject <- sybil::sysBiolAlg(model, algorithm=algo)
@@ -103,6 +115,10 @@ Organism <- function(model, algo="fba", ex="EX_", ex_comp=NA, csuffix="\\[c\\]",
     medc <- exf@react_id[grep(ex, exf@react_id)]
     names(medc) <- model@met_name[exf@met_pos[grep(ex, exf@react_id)]]
   }
+  if(!all(duplicated(medc)==FALSE)){
+    warning("Model file contains duplicated reaction IDs. Attention, duplicated exchange reaction will be removed.")
+    print(medc[which(medc==medc[duplicated(medc)])])
+    medc <- unique(medc)}
   if(!is.na(ex_comp)){
     medc <- medc[grep(ex_comp, medc)]
   }
@@ -126,7 +142,7 @@ Organism <- function(model, algo="fba", ex="EX_", ex_comp=NA, csuffix="\\[c\\]",
     lobnd[which(names(lobnd) %in% medc & lobnd==0)] <- -1000 
   }
   new("Organism", lbnd=lobnd, ubnd=upbnd, type=typename, medium=medc, lpobj=lpobject,
-      fbasol=fbasol, feat=feat, lyse=lyse, model=model, ...)
+      fbasol=fbasol, feat=feat, lyse=lyse, model=model, algo=algo, ...)
 }
 
 ########################################################################################################
@@ -161,6 +177,15 @@ setGeneric("speed", function(object){standardGeneric("speed")})
 setMethod("speed", "Organism", function(object){return(object@speed)})
 setGeneric("model", function(object){standardGeneric("model")})
 setMethod("model", "Organism", function(object){return(object@model)})
+setGeneric("maxweight", function(object){standardGeneric("maxweight")})
+setMethod("maxweight", "Organism", function(object){return(object@maxweight)})
+setGeneric("cellweight_mean", function(object){standardGeneric("cellweight_mean")})
+setMethod("cellweight_mean", "Organism", function(object){return(object@cellweight_mean)})
+setGeneric("cellarea", function(object){standardGeneric("cellarea")})
+setMethod("cellarea", "Organism", function(object){return(object@cellarea)})
+setGeneric("algo", function(object){standardGeneric("algo")})
+setMethod("algo", "Organism", function(object){return(object@algo)})
+
 
 ########################################################################################################
 ###################################### METHODS #########################################################
@@ -175,38 +200,42 @@ setMethod("model", "Organism", function(object){return(object@model)})
 #' @param object An object of class Organisms.
 #' @param reacts A character vector giving the names of reactions which should be constrained.
 #' @param lb A numeric vector giving the constraint values of lower bounds (e.g. avaible metabolite concentrations
+#' @param ub A numeric vector giving the constraint values of upper bounds.
 #' @param dryweight A number giving the current dryweight of the organism.
-#' @param time A number giving the time intervals for each simulation step.
+#' @param tstep A number giving the time intervals for each simulation step.
 #' @param scale A numeric defining the scaling (units for linear programming has to be in certain range)
 #' @param j debuging index to track cell
 #' @return Returns the lower bounds, which carry the constraints and names of relevant reactions.
-#' @details The constraints are calculated according to the flux definition as mmol/(gDW*hr) with the parameters \code{dryweight} and \code{time}.
+#' @details The constraints are calculated according to the flux definition as mmol/(gDW*hr) with the parameters \code{dryweight} and \code{tstep}.
 #' @seealso \code{\link{Organism-class}}
 #' @examples
 #' data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
 #' org <- Organism(Ec_core,deathrate=0.05,
 #'            minweight=0.05,growtype="exponential") #initialize an organism
-#' lobnds <- constrain(org,org@medium,org@lbnd[org@medium],1,1)
-setGeneric("constrain", function(object, reacts, lb, dryweight, time, scale, j){standardGeneric("constrain")})
+#' lobnds <- constrain(org,org@medium,org@lbnd[org@medium],1,1,1,1,1)
+setGeneric("constrain", function(object, reacts, lb, ub, dryweight, tstep, scale, j){standardGeneric("constrain")})
 #' @export
 #' @rdname constrain
-setMethod("constrain", "Organism", function(object, reacts, lb, dryweight, time, scale, j){
+setMethod("constrain", "Organism", function(object, reacts, lb, ub, dryweight, tstep, scale, j){
+  reacts = unique(reacts)
+  lb = lb[reacts]
   lobnd <- object@lbnd
-  lobnd[reacts] <- object@lbnd[reacts]*(dryweight/object@cellweight_mean)*time #costrain according to flux definition: mmol/(gDW*hr)
+  if(dryweight<Inf){lobnd[reacts] <- object@lbnd[reacts]*(dryweight/object@cellweight_mean)*tstep} #costrain according to flux definition: mmol/(gDW*hr)
   #lobnd[reacts] <- ifelse(lb<=lobnd[reacts], ifelse(lobnd[reacts]==0, lb, lobnd[reacts]), lb) #check if lower bounds in biological relevant range
   lobnd[reacts] <- ifelse(lb<=lobnd[reacts], lobnd[reacts], lb) #check if lower bounds in biological relevant range
   #if(j==1) browser()
   if(length(object@kinetics) != 0){
     lobnd[names(object@kinetics)] <- unlist(lapply(names(object@kinetics), function(name){
       Km  <- (object@kinetics[[name]][["Km"]]*0.01*scale)*10^12 #scale mM to fmol/gridcell
-      vmax <- object@kinetics[[name]][["vmax"]]*(dryweight/object@cellweight_mean)*time #scale to fmol/pgDW*hr
+      vmax <- object@kinetics[[name]][["vmax"]]*(dryweight/object@cellweight_mean)*tstep #scale to fmol/pgDW*hr
       s   <- -lb[name] # change sign to get concentrations
-      lnew = -(vmax*s/(Km + s))*time
+      lnew = -(vmax*s/(Km + s))*tstep
       if(abs(lnew)>s){if(-s>=lobnd[name]){lnew=-s}else{lnew=lobnd[name]}}
       return(lnew)
     }))
   }
-  return(lobnd)
+  ub[which(object@model@obj_coef!=0)] <- (object@maxweight*1.5) - dryweight
+  return(list(lobnd, ub))
 })
 
 
@@ -251,8 +280,9 @@ setMethod("setKinetics", "Organism", function(object, exchangeR, Km, vmax){
 #' @param ub A numeric vector giving the constraint values of upper bounds.
 #' @param cutoff value used to define numeric accuracy while interpreting optimization results
 #' @param j debuging index to track cell
-#' @param sec_obj character giving the secondary objective for a bi-level LP if wanted.
+#' @param sec_obj character giving the secondary objective for a bi-level LP if wanted. Use "mtf" for minimizing total flux, "opt_rxn" for optimizing a random reaction, "opt_ex" for optimizing a random exchange reaction, and "sumex" for optimizing the sum of all exchange fluxes.
 #' @return Modified problem object according to the constraints and then solved with \code{optimizeProb}.
+#' @details The parameter for sec_obj can be used to optimize a bi-level LP with a secondary objective if wanted. This can be helpful to subselect the solution space and create less alternative optimal solution. The secondary objective can be set to "mtf" to minimize the total flux, to simulate minimal enzyme usage of an organisms. If set to "opt_rxn" or "opt_ex", the secondary objective is picked as a random reaction or exchange reaction respectively everytime a fba is performed. This means that every individual of a population will select a different secondary reaction to optimize. The "sumex" option maximizes the secretion of products.
 #' @seealso \code{\link{Organism-class}}, \code{\link{optimizeProb}} and \code{\link{sysBiolAlg}}
 #' @examples
 #' data(Ec_core, envir = environment()) #get Escherichia coli core metabolic model
@@ -272,7 +302,10 @@ setMethod("optimizeLP", "Organism", function(object, lpob=object@lpobj, lb=objec
          sybilGUROBI = {solve_ok <- fbasl$stat==2},
          stop("Solver not suported!"))
   if(is.na(solve_ok)){solve_ok = FALSE}
-  if(!solve_ok | fbasl$obj<cutoff){fbasl$obj <- 0}
+  if(!solve_ok | is.na(fbasl$obj) | fbasl$obj<cutoff){
+    fbasl$obj <- 0
+    fbasl$fluxes <- rep(0, length(fbasl$fluxes))
+  }
   if(sec_obj!="none" && fbasl$obj!=0){
     switch(sec_obj,
            mtf =   {mod = sybil::changeBounds(object@model, object@model@react_id, lb=lb, ub=ub);
@@ -374,16 +407,17 @@ setMethod("getPhenotype", "Organism", function(object, cutoff=1e-6, fbasol, par=
 #' @param object An object of class Organisms.
 #' @param growth A number indicating the current biomass, which has to be updated. 
 #' @param fbasol Problem object according to the constraints and then solved with \code{optimizeProb}.
+#' @param tstep A number giving the time intervals for each simulation step.
 #' @return Returns the updated biomass of the organisms of interest.
 #' @details Linear growth of organisms is implemented by adding the calculated growthrate by \code{optimizeLP} to the already present growth value.
 #' @seealso \code{\link{Organism-class}} and \code{\link{optimizeLP}}
-setGeneric("growLin", function(object, growth, fbasol){standardGeneric("growLin")})
+setGeneric("growLin", function(object, growth, fbasol, tstep){standardGeneric("growLin")})
 #' @export
 #' @rdname growLin
-setMethod("growLin", "Organism", function(object, growth, fbasol){
+setMethod("growLin", "Organism", function(object, growth, fbasol, tstep){
   if(fbasol$obj > 0){
     grow_accum <- fbasol$obj + growth
-  } else grow_accum <- growth - object@deathrate
+  } else grow_accum <- growth - object@deathrate*tstep
   return(grow_accum)
 })
 
@@ -398,16 +432,17 @@ setMethod("growLin", "Organism", function(object, growth, fbasol){
 #' @param object An object of class Organisms.
 #' @param growth A number indicating the current biomass, which has to be updated. 
 #' @param fbasol Problem object according to the constraints and then solved with \code{optimizeProb}.
+#' @param tstep A number giving the time intervals for each simulation step.
 #' @return Returns the updated biomass of the organisms of interest.
 #' @details Exponential growth of organisms is implemented by adding the calculated growthrate multiplied with the current growth calculated by \code{optimizeLP} plus to the already present growth value
 #' @seealso \code{\link{Organism-class}} and \code{\link{optimizeLP}}
-setGeneric("growExp", function(object, growth, fbasol){standardGeneric("growExp")})
+setGeneric("growExp", function(object, growth, fbasol, tstep){standardGeneric("growExp")})
 #' @export
 #' @rdname growExp
-setMethod("growExp", "Organism", function(object, growth, fbasol){
+setMethod("growExp", "Organism", function(object, growth, fbasol, tstep){
   if(fbasol$obj > 0){
     grow_accum <- (fbasol$obj * growth + growth)
-  } else grow_accum <- growth - object@deathrate*growth
+  } else grow_accum <- growth - object@deathrate*growth*tstep
   return(grow_accum)
 })
 
@@ -543,7 +578,7 @@ setMethod("move", "Organism", function(object, pos, n, m, j, occupyM){
   if(length(freenb) != 0){
     npos = freenb[sample(length(freenb),1)]
     npos = as.numeric(unlist(strsplit(npos,'_')))
-    if(occupyM[npos[1], npos[2]] == 0){ # check if there is no obstacle
+    if(occupyM[npos[2], npos[1]] == 0){ # check if there is no obstacle
       pos[j,] = npos
     }
   }
@@ -569,6 +604,10 @@ setMethod(show, signature(object="Organism"), function(object){
 #' @exportClass Bac
 #' @rdname Bac
 #'
+#' @slot deathrate A numeric value giving the factor by which the growth should be reduced in every iteration (default (E.coli): 0.21 pg)
+#' @slot minweight A numeric value giving the growth limit at which the organism dies. (default (E.coli): 0.083 pg)
+#' @slot cellarea A numeric value indicating the surface that one organism occupies (default (E.coli): 4.42 mu_m^2)
+#' @slot maxweight A numeric value giving the maximal dry weight of single organism (default (E.coli): 1.172 pg)
 #' @slot chem A character vector indicating name of substance which is the chemotaxis attractant. Empty character vector if no chemotaxis.
 setClass("Bac",
          contains="Organism",
@@ -622,38 +661,39 @@ setMethod("chem", "Bac", function(object){return(object@chem)})
 #' @param j The index of the organism of interest in orgdat.
 #' @param occupyM A matrix indicating grid cells that are obstacles
 #' @param fbasol Problem object according to the constraints and then solved with \code{optimizeProb}.
+#' @param tstep A number giving the time intervals for each simulation step.
 #' @return Boolean variable of the \code{j}th individual indicating if individual died.
 #' @details Linear growth of organisms is implemented by adding the calculated growthrate by \code{optimizeLP} to the already present growth value. Exponential growth of organisms is implemented by adding the calculated growthrate multiplied with the current growth calculated by \code{optimizeLP} plus to the already present growth value
 #' @seealso \code{\link{Bac-class}}, \code{\link{growLin}} and \code{\link{growExp}}
-setGeneric("growth", function(object, population, j, occupyM, fbasol){standardGeneric("growth")})
+setGeneric("growth", function(object, population, j, occupyM, fbasol, tstep){standardGeneric("growth")})
 #' @export
 #' @rdname growth
-setMethod("growth", "Bac", function(object, population, j, occupyM, fbasol){
+setMethod("growth", "Bac", function(object, population, j, occupyM, fbasol, tstep){
   neworgdat <- population@orgdat
   popvec <- neworgdat[j,]
   switch(object@growtype,
-         "linear"= {popvec$growth <- growLin(object, popvec$growth, fbasol)},
-         "exponential"= {popvec$growth <- growExp(object, popvec$growth, fbasol)},
+         "linear"= {popvec$biomass <- growLin(object, popvec$biomass, fbasol, tstep)},
+         "exponential"= {popvec$biomass <- growExp(object, popvec$biomass, fbasol, tstep)},
          stop("Growth type must be either linear or exponential"))
   dead <- F
-  neworgdat[j,'growth'] <- popvec$growth
-  if(popvec$growth > object@maxweight){
+  neworgdat[j,'biomass'] <- popvec$biomass
+  if(popvec$biomass > object@maxweight){ 
     freenb <- emptyHood(object, population@orgdat[,c('x','y')],
               population@n, population@m, popvec$x, popvec$y)
     if(length(freenb) != 0){
       npos = freenb[sample(length(freenb),1)]
       npos = as.numeric(unlist(strsplit(npos,'_')))
-      if(occupyM[npos[1], npos[2]] == 0){ # check if there is no obstacle
+      if(occupyM[npos[2], npos[1]] == 0){ # check if there is no obstacle
         daughter <- popvec
-        daughter$growth <- popvec$growth/2
+        daughter$biomass <- popvec$biomass/2
         daughter$x <- npos[1]
         daughter$y <- npos[2]
         neworgdat[nrow(neworgdat)+1,] <- daughter
-        neworgdat[j,'growth'] <- popvec$growth/2
+        neworgdat[j,'biomass'] <- popvec$biomass/2
       }
     }
-  }else if(popvec$growth < object@minweight){
-    neworgdat[j,'growth'] <- NA
+  }else if(popvec$biomass < object@minweight){
+    neworgdat[j,'biomass'] <- NA
     dead <- T
   }
   eval.parent(substitute(population@orgdat <- neworgdat))
@@ -671,21 +711,22 @@ setMethod("growth", "Bac", function(object, population, j, occupyM, fbasol){
 #' @param population An object of class Arena.
 #' @param j The index of the organism of interest in orgdat.
 #' @param fbasol Problem object according to the constraints and then solved with \code{optimizeProb}.
+#' @param tstep A number giving the time intervals for each simulation step.
 #' @return A list 
-setGeneric("growth_par", function(object, population, j, fbasol){standardGeneric("growth_par")})
+setGeneric("growth_par", function(object, population, j, fbasol, tstep){standardGeneric("growth_par")})
 #' @export
 #' @rdname growth_par
-setMethod("growth_par", "Bac", function(object, population, j, fbasol){
+setMethod("growth_par", "Bac", function(object, population, j, fbasol, tstep){
   neworgdat <- population@orgdat
   popvec <- neworgdat[j,]
   switch(object@growtype,
-         "linear"= {popvec$growth <- growLin(object, popvec$growth, fbasol)},
-         "exponential"= {popvec$growth <- growExp(object, popvec$growth, fbasol)},
+         "linear"= {popvec$biomass <- growLin(object, popvec$biomass, fbasol, tstep)},
+         "exponential"= {popvec$biomass <- growExp(object, popvec$biomass, fbasol, tstep)},
          stop("Growth type must be either linear or exponential"))
   dead <- F
-  neworgdat[j,'growth'] <- popvec$growth
-  if(popvec$growth < object@minweight){
-    neworgdat[j,'growth'] <- NA
+  neworgdat[j,'biomass'] <- popvec$biomass
+  if(popvec$biomass < object@minweight){
+    neworgdat[j,'biomass'] <- NA
     dead <- T
   }
   return(list(dead, neworgdat))
@@ -761,14 +802,15 @@ setGeneric("simBac", function(object, arena, j, sublb, bacnum, sec_obj="none", c
 #' @export
 #' @rdname simBac
 setMethod("simBac", "Bac", function(object, arena, j, sublb, bacnum, sec_obj="none", cutoff=1e-6, pcut=1e-6){
-  lobnd <- constrain(object, object@medium, lb=-sublb[j,object@medium]/bacnum, #scale to population size
-                     dryweight=arena@orgdat[j,"growth"], time=arena@tstep, scale=arena@scale, j)
-  optimization <- optimizeLP(object, lb=lobnd, j=j, sec_obj=sec_obj, cutoff=cutoff)
+  const <- constrain(object, object@medium, lb=-sublb[j,object@medium]/bacnum, ub=object@ubnd*bacnum, #scale to population size
+                     dryweight=arena@orgdat[j,"biomass"], tstep=arena@tstep, scale=arena@scale, j)
+  lobnd <- const[[1]]; upbnd <- const[[2]]
+  optimization <- optimizeLP(object, lb=lobnd, ub=upbnd, j=j, sec_obj=sec_obj, cutoff=cutoff)
   fbasol <- optimization[[1]]
   
   eval.parent(substitute(sublb[j,] <- consume(object, sublb[j,], bacnum=bacnum, fbasol=fbasol, cutoff) )) #scale consumption to the number of cells?
 
-  dead <- growth(object, arena, j, arena@occupyM, fbasol=fbasol)
+  dead <- growth(object, arena, j, arena@occupyM, fbasol=fbasol, tstep=arena@tstep)
   arena@orgdat[j,'phenotype'] <- as.integer(checkPhen(arena, org=object, fbasol=fbasol, cutoff=pcut))
   
   type <- object@type
@@ -811,14 +853,14 @@ setGeneric("simBac_par", function(object, arena, j, sublb, bacnum, lpobject, sec
 #' @export
 #' @rdname simBac_par
 setMethod("simBac_par", "Bac", function(object, arena, j, sublb, bacnum, lpobject, sec_obj="none", cutoff=1e-6){
-  lobnd <- constrain(object, object@medium, lb=-sublb[j,object@medium]/bacnum, #scale to population size
-                     dryweight=arena@orgdat[j,"growth"], time=arena@tstep, scale=arena@scale)
-  
-  fbasol <- optimizeLP(object, lb=lobnd, j=j, sec_obj=sec_obj, cutoff=cutoff)
+  const <- constrain(object, object@medium, lb=-sublb[j,object@medium]/bacnum, ub=object@ubnd*bacnum, #scale to population size
+                     dryweight=arena@orgdat[j,"biomass"], tstep=arena@tstep, scale=arena@scale)
+  lobnd <- const[[1]]; upbnd <- const[[2]]
+  fbasol <- optimizeLP(object, lb=lobnd, ub=upbnd, j=j, sec_obj=sec_obj, cutoff=cutoff)
 
   sublb[j,] <- consume(object, sublb=sublb[j,], bacnum=bacnum, fbasol=fbasol, cutoff=1e-6) #scale consumption to the number of cells?
   
-  growth <- growth_par(object, arena, j, fbasol)
+  growth <- growth_par(object, arena, j, fbasol, tstep=arena@tstep)
   dead <- growth[[1]]
   neworgdat <- growth[[2]]
   
@@ -883,8 +925,8 @@ setClass("Human",
 #' @param speed A integer vector representing the speed by which bacterium is moving (given by cell per iteration).
 #' @param ... Arguments of \code{\link{Organism-class}}
 #' @return Object of class \code{\link{Human-class}}
-Human <- function(model, objective=model@react_id[which(model@obj_coef==1)], speed=0, ...){
-  model <- sybil::changeObjFunc(model, objective)
+Human <- function(model, objective=model@react_id[which(model@obj_coef!=0)], speed=0, ...){
+  model <- sybil::changeObjFunc(model, objective, obj_coef=model@obj_coef[which(model@obj_coef!=0)])
   new("Human", Organism(model=model, speed=speed, ...), objective=objective)
 }
 
@@ -936,38 +978,39 @@ setMethod("changeFobj", "Human", function(object, new_fobj, model, alg="fba"){
 #' @param j The number of the iteration of interest.
 #' @param occupyM A matrix indicating grid cells that are obstacles
 #' @param fbasol Problem object according to the constraints and then solved with \code{optimizeProb}.
+#' @param tstep A number giving the time intervals for each simulation step.
 #' @return Boolean variable of the \code{j}th individual indicating if individual died.
 #' @details Linear growth of organisms is implemented by adding the calculated growthrate by \code{optimizeLP} to the already present growth value. Exponential growth of organisms is implemented by adding the calculated growthrate multiplied with the current growth calculated by \code{optimizeLP} plus to the already present growth value.
 #' @seealso \code{\link{Human-class}}, \code{\link{growLin}} and \code{\link{growExp}}
-setGeneric("cellgrowth", function(object, population, j, occupyM, fbasol){standardGeneric("cellgrowth")})
+setGeneric("cellgrowth", function(object, population, j, occupyM, fbasol, tstep){standardGeneric("cellgrowth")})
 #' @export
 #' @rdname cellgrowth
-setMethod("cellgrowth", "Human", function(object, population, j, occupyM, fbasol){
+setMethod("cellgrowth", "Human", function(object, population, j, occupyM, fbasol, tstep){
   neworgdat <- population@orgdat
   popvec <- neworgdat[j,]
   switch(object@growtype,
-         "linear"= {popvec$growth <- growLin(object, popvec$growth, fbasol)},
-         "exponential"= {popvec$growth <- growExp(object, popvec$growth, fbasol)},
+         "linear"= {popvec$biomass <- growLin(object, popvec$biomass, fbasol, tstep)},
+         "exponential"= {popvec$biomass <- growExp(object, popvec$biomass, fbasol, tstep)},
          stop("Growth type must be either linear or exponential"))
   dead <- F
-  neworgdat[j,'growth'] <- popvec$growth
-  if(popvec$growth > object@maxweight){
+  neworgdat[j,'biomass'] <- popvec$biomass
+  if(popvec$biomass > object@maxweight){
     freenb <- emptyHood(object, population@orgdat[,c('x','y')],
                         population@n, population@m, popvec$x, popvec$y)
     if(length(freenb) != 0){
       npos = freenb[sample(length(freenb),1)]
       npos = as.numeric(unlist(strsplit(npos,'_')))
-      if(occupyM[npos[1], npos[2]] == 0){ # check if there is no obstacle
+      if(occupyM[npos[2], npos[1]] == 0){ # check if there is no obstacle
         daughter <- popvec
-        daughter$growth <- popvec$growth/2
+        daughter$biomass <- popvec$biomass/2
         daughter$x <- npos[1]
         daughter$y <- npos[2]
         neworgdat[nrow(neworgdat)+1,] <- daughter
-        neworgdat[j,'growth'] <- popvec$growth/2
+        neworgdat[j,'biomass'] <- popvec$biomass/2
       }
     }
-  }else if(popvec$growth < object@minweight){
-    neworgdat[j,'growth'] <- NA
+  }else if(popvec$biomass < object@minweight){
+    neworgdat[j,'biomass'] <- NA
     dead <- T
   }
   eval.parent(substitute(population@orgdat <- neworgdat))
@@ -985,23 +1028,44 @@ setMethod("cellgrowth", "Human", function(object, population, j, occupyM, fbasol
 #' @param arena An object of class Arena defining the environment.
 #' @param bacnum integer indicating the number of bacteria individuals per gridcell
 #' @param sublb A vector containing the substance concentrations in the current position of the individual of interest.
+#' @param cutoff value used to define numeric accuracy.
+#' @param pcut A number giving the cutoff value by which value of objective function is considered greater than 0.
+#' @param sec_obj character giving the secondary objective for a bi-level LP if wanted.
 #' @return Returns the updated enivironment of the \code{arena} parameter with all new positions of individuals on the grid and all new substrate concentrations.
 #' @details Human cell individuals undergo the step by step the following procedures: First the individuals are constrained with \code{constrain} to the substrate environment, then flux balance analysis is computed with \code{optimizeLP}, after this the substrate concentrations are updated with \code{consume}, then the cell growth is implemented with \code{cellgrowth}, the potential new phenotypes are added with \code{checkPhen}, finally the conditional function \code{lysis} is performed. Can be used as a wrapper for all important cell functions in a function similar to \code{simEnv}.
 #' @seealso \code{\link{Human-class}}, \code{\link{Arena-class}}, \code{\link{simEnv}}, \code{constrain}, \code{optimizeLP}, \code{consume}, \code{cellgrowth}, \code{checkPhen} and \code{lysis}
 #' @examples
 #' NULL
-setGeneric("simHum", function(object, arena, j, sublb, bacnum){standardGeneric("simHum")})
+setGeneric("simHum", function(object, arena, j, sublb, bacnum, sec_obj="none", cutoff=1e-6, pcut=1e-6){standardGeneric("simHum")})
 #' @export
 #' @rdname simHum
-setMethod("simHum", "Human", function(object, arena, j, sublb, bacnum){
-  lobnd <- constrain(object, object@medium, lb=-sublb[j,object@medium]/bacnum, #scale to population size
-                     dryweight=arena@orgdat[j,"growth"], time=arena@tstep, scale=arena@scale)
-  fbasol <- optimizeLP(object, lb=lobnd, j=j)
-  eval.parent(substitute(sublb[j,] <- consume(object, sublb[j,], bacnum=bacnum, fbasol=fbasol))) #rescale from population size
-  dead <- cellgrowth(object, arena, j, arena@occupyM, fbasol=fbasol)
-  arena@orgdat[j,'phenotype'] <- as.integer(checkPhen(arena, object, fbasol=fbasol))
+setMethod("simHum", "Human", function(object, arena, j, sublb, bacnum, sec_obj="none", cutoff=1e-6, pcut=1e-6){
+  const <- constrain(object, object@medium, lb=-sublb[j,object@medium]/bacnum, ub=object@ubnd*bacnum, #scale to population size
+                     dryweight=arena@orgdat[j,"biomass"], tstep=arena@tstep, scale=arena@scale, j)
+  lobnd <- const[[1]]; upbnd <- const[[2]]
+  optimization <- optimizeLP(object, lb=lobnd, ub=upbnd, j=j, sec_obj=sec_obj, cutoff=cutoff)
+  fbasol <- optimization[[1]]
+  
+  eval.parent(substitute(sublb[j,] <- consume(object, sublb[j,], bacnum=bacnum, fbasol=fbasol, cutoff) )) #scale consumption to the number of cells?
+  
+  dead <- cellgrowth(object, arena, j, arena@occupyM, fbasol=fbasol, tstep=arena@tstep)
+  arena@orgdat[j,'phenotype'] <- as.integer(checkPhen(arena, object, fbasol=fbasol, cutoff=pcut))
+  type <- object@type
+  arena@mflux[[type]]  <- arena@mflux[[type]] + fbasol$fluxes # remember active fluxes
+  arena@shadow[[type]] <- arena@shadow[[type]]+ optimization[[2]]
+
   if(dead && object@lyse){
     eval.parent(substitute(sublb[j,] <- lysis(object, names(arena@media), sublb[j,])))
+  }
+  pos <- arena@orgdat[,c('x','y')]
+  if(!dead && !arena@stir && object@speed != 0){
+    if(object@chem == ''){
+      mov_pos <- move(object, pos, arena@n, arena@m, j, arena@occupyM)
+      arena@orgdat[,c('x','y')] <- mov_pos
+    }else{
+      chemo_pos <- chemotaxis(object, arena, j)
+      arena@orgdat[j,c('x','y')] <- chemo_pos
+    }
   }
   return(arena)
 })

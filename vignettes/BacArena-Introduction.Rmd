@@ -173,10 +173,11 @@ Therefore, the basic BacArena methods, introduced in the last section, are used 
 
 ```{r results='hide', message=FALSE, warning=FALSE}
 library(parallel)
+replicates <- 2
 cores <- ifelse(detectCores()>=2, 2, 1)
 cl <- makeCluster(cores, type="PSOCK")
 clusterExport(cl, "Ec_core")
-simlist <- parLapply(cl, 1:cores, function(i){
+simlist <- parLapply(cl, 1:replicates, function(i){
   bac   <- BacArena::Bac(model=Ec_core)
   arena <- BacArena::Arena(n=20, m=20)
   arena <- BacArena::addOrg(arena, bac, amount=10)
@@ -220,7 +221,7 @@ p + ggplot2::scale_color_manual(values=colpal3)
 ```
 The methods *plotAbundances()* returns a ggplot object which can be modified, e.g., to use different colors.
 
-Quit useful is to investigate the metabolic activity of all organisms.
+It is quite to investigate the metabolic activity of all organisms.
 We obtain a figure with uptake (negative values) and production (positive values) patterns of substances which changed most during simulation by
 
 ```{r}
