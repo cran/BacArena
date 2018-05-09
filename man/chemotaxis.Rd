@@ -6,9 +6,9 @@
 \alias{chemotaxis,Bac-method}
 \title{Function for chemotaxis of bacteria to their prefered substrate}
 \usage{
-chemotaxis(object, population, j)
+chemotaxis(object, population, j, chemo)
 
-\S4method{chemotaxis}{Bac}(object, population, j)
+\S4method{chemotaxis}{Bac}(object, population, j, chemo)
 }
 \arguments{
 \item{object}{An object of class Bac.}
@@ -16,6 +16,8 @@ chemotaxis(object, population, j)
 \item{population}{An object of class Arena.}
 
 \item{j}{The number of the iteration of interest.}
+
+\item{chemo}{The vector that contains the prefered substrate.}
 }
 \description{
 The generic function \code{chemotaxis} implements a bacterial movement in the Moore neighbourhood to the highest substrate concentration.
@@ -30,7 +32,7 @@ bac <- Bac(Ec_core,deathrate=0.05, chem = "EX_o2(e)",
 arena <- Arena(n=20,m=20) #initialize the environment
 arena <- addOrg(arena,bac,amount=10) #add 10 organisms
 arena <- addSubs(arena,40) #add all possible substances
-chemotaxis(bac,arena,1)
+chemotaxis(bac,arena,1, "EX_glc(e)")
 }
 \seealso{
 \code{\link{Bac-class}} and \code{\link{emptyHood}}

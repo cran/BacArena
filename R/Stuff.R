@@ -172,17 +172,18 @@ lsd <- function(y){lb=mean(y)-stats::sd(y); ifelse(lb<0,0,lb)}
 #' @param ret_data Set true if data should be returned
 #' @param num_var Number of varying substances to be shown (if mediac is not specified)
 #' @param unit Unit for the substances which should be used for plotting (default: mmol)
+#' @param useNames Use substance names instead of ids
 #' 
 #' @return list of three ggplot object for further formating
 #'
-plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit="mmol", ret_data=FALSE, num_var=10){
+plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit="mmol", ret_data=FALSE, num_var=10, useNames=FALSE){
   if(is(simlist, "Eval")) simlist <- list(simlist)
   if(length(simlist) < 1 | !all(lapply(simlist, class) == "Eval") == TRUE) stop("Simlist is invalid.")
   #if(sum(mediac %in% simlist[[1]]@mediac) != length(mediac)) stop("Substance does not exist in exchange reactions.")
   if(all(!is.null(time)) && (!time[1]<time[2] || !time[2]<length(simlist[[1]]@medlist))) stop("Time interval not valid")
   if(length(mediac)==0) mediac <- names(getVarSubs(simlist[[1]]))[1:num_var] # get the most varying substances (from first sim)
   if(length(mediac) == 0) stop("All substance have a variance of zero.")
-  mediac = intersect(mediac,simlist[[1]]@mediac)
+  mediac <- intersect(mediac,simlist[[1]]@mediac)
   if(length(mediac)==0) stop("Substance does not exist in exchange reactions.")
   
   all_df <- data.frame()
@@ -195,10 +196,10 @@ plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit
     rownames(mat) <- object@mediac
     if(length(mediac) > 1){
       mat_nice <- mat[which(rownames(mat) %in% mediac),]
-      rownames(mat_nice) <- gsub("\\(e\\)$","", gsub("\\[e\\]$","", gsub("EX_","",rownames(mat_nice))))
+      rownames(mat_nice) <- rownames(mat_nice)
     }else{
       mat_nice <- t(as.matrix(mat[which(rownames(mat) %in% mediac),]))
-      rownames(mat_nice) <- gsub("\\(e\\)$","", gsub("\\[e\\]$","", gsub("EX_","",mediac)))
+      rownames(mat_nice) <- mediac
     }
     colnames(mat_nice) <- time_seq
     mat_nice <- reshape2::melt(mat_nice)
@@ -206,8 +207,9 @@ plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit
     all_df <- rbind(all_df, mat_nice)
   }
   
-  
   all_df$Var2 <- all_df$Var2 * simlist[[1]]@tstep # adjust time to hours 
+  if( useNames ) all_df$Var1 <- names(simlist[[1]]@mediac)[match(all_df$Var1, simlist[[1]]@mediac)]
+  all_df$Var1 <- gsub("\\(e\\)$","", gsub("\\[e\\]$","", gsub("EX_","", all_df$Var1)))
   
   ylabel = "Amount of substance in"
   switch(unit,
@@ -216,7 +218,7 @@ plotSubCurve <-function(simlist, mediac=NULL, time=c(NULL,NULL), scol=NULL, unit
          'nmol'={all_df$value <- all_df$value * 10^{-6}; ylabel=paste(ylabel,"nmol")},
          'pmol'={all_df$value <- all_df$value * 10^{-3}; ylabel=paste(ylabel,"pmol")},
          'fmol'={all_df$value <- all_df$value * 1; ylabel=paste(ylabel,"fmol")},
-         'mM'  ={all_df$value <- all_df$value * 10^{-12}/(simlist[[1]]@Lx*simlist[[1]]@Ly); ylabel=paste(ylabel,"mM")},
+         'mM'  ={all_df$value <- all_df$value * 10^{-12}*100/(simlist[[1]]@Lx*simlist[[1]]@Ly); ylabel=paste(ylabel,"mM")},
          stop("Wrong unit for concentration."))
   
   colnames(all_df)[1:2] <- c("sub", "time")

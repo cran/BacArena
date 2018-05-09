@@ -7,10 +7,10 @@
 \title{Function for one simulation iteration for objects of Bac class}
 \usage{
 simBac(object, arena, j, sublb, bacnum, sec_obj = "none", cutoff = 1e-06,
-  pcut = 1e-06)
+  pcut = 1e-06, with_shadow = FALSE)
 
 \S4method{simBac}{Bac}(object, arena, j, sublb, bacnum, sec_obj = "none",
-  cutoff = 1e-06, pcut = 1e-06)
+  cutoff = 1e-06, pcut = 1e-06, with_shadow = FALSE)
 }
 \arguments{
 \item{object}{An object of class Bac.}
@@ -28,6 +28,8 @@ simBac(object, arena, j, sublb, bacnum, sec_obj = "none", cutoff = 1e-06,
 \item{cutoff}{value used to define numeric accuracy.}
 
 \item{pcut}{A number giving the cutoff value by which value of objective function is considered greater than 0.}
+
+\item{with_shadow}{True if shadow cost should be stores (default off).}
 }
 \value{
 Returns the updated enivironment of the \code{population} parameter with all new positions of individuals on the grid and all new substrate concentrations.
@@ -36,7 +38,7 @@ Returns the updated enivironment of the \code{population} parameter with all new
 The generic function \code{simBac} implements all neccessary functions for the individuals to update the complete environment.
 }
 \details{
-Bacterial individuals undergo step by step the following procedures: First the individuals are constrained with \code{constrain} to the substrate environment, then flux balance analysis is computed with \code{optimizeLP}, after this the substrate concentrations are updated with \code{consume}, then the bacterial growth is implemented with \code{growth}, the potential new phenotypes are added with \code{checkPhen}, finally the additional and conditional functions \code{lysis}, \code{move} or \code{chemotaxis} are performed. Can be used as a wrapper for all important bacterial functions in a function similar to \code{simEnv}.
+Bacterial individuals undergo step by step the following procedures: First the individuals are constrained with \code{constrain} to the substrate environment, then flux balance analysis is computed with \code{optimizeLP}, after this the substrate concentrations are updated with \code{consume}, then the bacterial growth is implemented with \code{growth}, the potential new phenotypes are added with \code{checkPhen}, finally the additional and conditional functions \code{lysis}, \code{move} or \code{chemotaxis} are performed. In case of many compounds in the vector of \code{chemotaxis}, the change of the position takes place by the order of the compounds in the vector of \code{chemotaxis}. Can be used as a wrapper for all important bacterial functions in a function similar to \code{simEnv}.
 }
 \examples{
 NULL
