@@ -230,7 +230,7 @@ setMethod("addOrg", "Arena", function(object, specI, amount=1, x=NULL, y=NULL, p
     neworgdat[(lastind+1):(amount+lastind),'type']=rep(type, amount)
     neworgdat[(lastind+1):(amount+lastind),'phenotype']=rep(NA, amount)
   }else{
-    if(x<1 || x>n || y<1 || y>m){stop("The positions of the individuals are beyond the dimensions of the environment.")}
+    if( any(x<1) || any(x>n) || any(y<1) || any(y>m) ){stop("The positions of the individuals are beyond the dimensions of the environment.")}
     neworgdat[(lastind+1):(amount+lastind),'x']=x
     neworgdat[(lastind+1):(amount+lastind),'y']=y
     if(is.numeric(biomass)) neworgdat[(lastind+1):(amount+lastind),'biomass'] = rep(biomass, amount)
@@ -293,7 +293,8 @@ setGeneric("addSubs", function(object, smax=0, mediac=object@mediac, difunc="pde
 #' @rdname addSubs
 #' @export
 setMethod("addSubs", "Arena", function(object, smax=0, mediac=object@mediac, difunc="pde", pde="Diff2d", difspeed=6.7e-6, unit="mmol/cell", add=TRUE, diffmat=NULL, template=FALSE, Dgrid=NULL, Vgrid=NULL, addAnyway=FALSE){
-  switch(class(object),"Arena"={object <- object}, "Eval"={object <- getArena(object)}, stop("Please supply an object of class Arena or Eval."))
+  #switch(class(object),"Arena"={object <- object}, "Eval"={arenalast <- getArena(object)}, stop("Please supply an object of class Arena or Eval."))
+  if(!(class(object)=="Arena" || class(object)=="Eval")){stop("Please supply an object of class Arena or Eval.")}
   if(length(smax) != length(mediac) && length(smax) != 1){
     stop("The parameter smax should be of the same size of mediac or equal to 1.")
   }
@@ -797,7 +798,7 @@ setMethod("unit_conversion", "Arena", function(object, unit){
 #' @param sec_obj character giving the secondary objective for a bi-level LP if wanted. Use "mtf" for minimizing total flux, "opt_rxn" for optimizing a random reaction, "opt_ex" for optimizing a random exchange reaction, and "sumex" for optimizing the sum of all exchange fluxes.
 #' @param cutoff value used to define numeric accuracy
 #' @param pcut A number giving the cutoff value by which value of objective function is considered greater than 0.
-#' @param with_shadow True if shadow cost should be stores (default off).
+#' @param with_shadow True if shadow cost should be stored.
 #' @param verbose Set to false if no status messages should be printed. 
 #' @return Returns an object of class \code{Eval} which can be used for subsequent analysis steps.
 #' @details The returned object itself can be used for a subsequent simulation, due to the inheritance between \code{Eval} and \code{Arena}. The parameter for sec_obj can be used to optimize a bi-level LP with a secondary objective if wanted. This can be helpful to subselect the solution space and create less alternative optimal solution. The secondary objective can be set to "mtf" to minimize the total flux, to simulate minimal enzyme usage of an organisms. If set to "opt_rxn" or "opt_ex", the secondary objective is picked as a random reaction or exchange reaction respectively everytime a fba is performed. This means that every individual of a population will select a different secondary reaction to optimize. The "sumex" option maximizes the secretion of products.
@@ -810,10 +811,10 @@ setMethod("unit_conversion", "Arena", function(object, unit){
 #' arena <- addOrg(arena,bac,amount=10) #add 10 organisms
 #' arena <- addSubs(arena,40) #add all possible substances
 #' eval <- simEnv(arena,5)
-setGeneric("simEnv", function(object, time, lrw=NULL, continue=FALSE, reduce=FALSE, diffusion=TRUE, diff_par=FALSE, cl_size=2, sec_obj="none", cutoff=1e-6, pcut=1e-6, with_shadow=FALSE, verbose=TRUE){standardGeneric("simEnv")})
+setGeneric("simEnv", function(object, time, lrw=NULL, continue=FALSE, reduce=FALSE, diffusion=TRUE, diff_par=FALSE, cl_size=2, sec_obj="none", cutoff=1e-6, pcut=1e-6, with_shadow=TRUE, verbose=TRUE){standardGeneric("simEnv")})
 #' @export
 #' @rdname simEnv
-setMethod("simEnv", "Arena", function(object, time, lrw=NULL, continue=FALSE, reduce=FALSE, diffusion=TRUE, diff_par=FALSE, cl_size=2, sec_obj="none", cutoff=1e-6, pcut=1e-6, with_shadow=FALSE, verbose=TRUE){
+setMethod("simEnv", "Arena", function(object, time, lrw=NULL, continue=FALSE, reduce=FALSE, diffusion=TRUE, diff_par=FALSE, cl_size=2, sec_obj="none", cutoff=1e-6, pcut=1e-6, with_shadow=TRUE, verbose=TRUE){
   if(length(object@media)==0) stop("No media present in Arena!")
   switch(class(object),
          "Arena"={arena <- object; evaluation <- Eval(arena)},
@@ -852,12 +853,14 @@ setMethod("simEnv", "Arena", function(object, time, lrw=NULL, continue=FALSE, re
       arena@orgdat = arena@orgdat[new_ind,]
       sublb = sublb[new_ind,] #apply shuffeling also to sublb to ensure same index as orgdat
     }
-    if(verbose) cat("\niteration:", i, "\t organisms:",nrow(arena@orgdat), "\t biomass:", sum(arena@orgdat$biomass), "pg \n")
-    org_stat <- sapply(seq_along(arena@specs), function(x){dim(arena@orgdat[which(arena@orgdat$type==x),])[1]})
-    if(length(arena@specs) > 0){
-      old_biomass<-biomass_stat; biomass_stat <- sapply(seq_along(arena@specs), function(x){sum(arena@orgdat$biomass[which(arena@orgdat$type==x)])})
-      org_stat <- cbind(org_stat, biomass_stat, 100*(biomass_stat-old_biomass)/old_biomass); rownames(org_stat) <- names(arena@specs); colnames(org_stat) <- c("count", "biomass", "%")
-      if(verbose) print(org_stat)}
+    #if(verbose) cat("\niteration-start:", i, "\t organisms:",nrow(arena@orgdat), "\t biomass:", sum(arena@orgdat$biomass), "pg \n")
+    #if(i==1){ 
+    #org_stat <- sapply(seq_along(arena@specs), function(x){dim(arena@orgdat[which(arena@orgdat$type==x),])[1]})
+    #if(length(arena@specs) > 0){
+    #  old_biomass<-biomass_stat; biomass_stat <- sapply(seq_along(arena@specs), function(x){sum(arena@orgdat$biomass[which(arena@orgdat$type==x)])})
+    #  org_stat <- cbind(org_stat, biomass_stat); rownames(org_stat) <- names(arena@specs); colnames(org_stat) <- c("count", "biomass")
+    #  if(verbose) print(as.data.frame(org_stat))}}
+    #if(verbose & i!=1) print(as.data.frame(org_stat)[,1:2])
     arena@mflux <- lapply(arena@mflux, function(x){numeric(length(x))}) # empty mflux pool
     arena@shadow <-lapply(arena@shadow, function(x){numeric(length(x))}) # empty shadow pool
     if(nrow(arena@orgdat) > 0){ # if there are organisms left
@@ -912,8 +915,17 @@ setMethod("simEnv", "Arena", function(object, time, lrw=NULL, continue=FALSE, re
       break
     }
     step_t <- proc.time()[3] - init_t
-    if(verbose) cat("\ttime total: ", round(step_t,3), "\tdiffusion: ", round(diff_t,3), " (", 100*round(diff_t/step_t,3),"%)\n" )
-  }
+    if(verbose) cat("\niteration:", i, "\t organisms:",nrow(arena@orgdat), "\t biomass:", sum(arena@orgdat$biomass), "pg \n")
+    if(verbose) cat("\r")
+    org_stat <- sapply(seq_along(arena@specs), function(x){dim(arena@orgdat[which(arena@orgdat$type==x),])[1]})
+    if(length(arena@specs) > 0){
+      old_biomass<-biomass_stat; biomass_stat <- sapply(seq_along(arena@specs), function(x){sum(arena@orgdat$biomass[which(arena@orgdat$type==x)])})
+      org_stat <- cbind(org_stat, biomass_stat, 100*(biomass_stat-old_biomass)/old_biomass); rownames(org_stat) <- names(arena@specs); colnames(org_stat) <- c("count", "biomass", "%")
+      if(verbose) print(as.data.frame(org_stat))}
+    if(verbose) cat("\r")
+    if(verbose) cat("\ttime total: ", round(step_t,3), "\tdiffusion: ", round(diff_t,3), " (", 100*round(diff_t/step_t,3),"%)\n\n" )
+    if(verbose) cat("--------------------------------------------------------------------\n")
+    }
   return(evaluation)
 })
 
@@ -2657,40 +2669,49 @@ setMethod("findFeeding2", "Eval", function(object, time, mets, rm_own=T, ind_thr
 #' @param time A numeric vector giving the simulation steps which should be plotted. 
 #' @param mets Character vector of substance names which should be considered
 #' @param plot Should the graph also be plotted?
+#' @param cutoff Accuracy of crossfeeding interaction (minimal flux to be considered)
 #' @return Graph (igraph)
 #' 
-setGeneric("findFeeding3", function(object, time, mets, plot=TRUE){standardGeneric("findFeeding3")})
+setGeneric("findFeeding3", function(object, time, mets, plot=TRUE, cutoff=1e-6){standardGeneric("findFeeding3")})
 #' @export
 #' @rdname findFeeding3
-setMethod("findFeeding3", "Eval", function(object, time, mets, plot=TRUE){
+setMethod("findFeeding3", "Eval", function(object, time, mets, plot=TRUE, cutoff=1e-6){
   mets = intersect(object@mediac,as.character(mets))
   time = time+1
   mflux = object@mfluxlist[[time]]
   mfluxmat = do.call(cbind,lapply(mflux,function(x){return(ifelse(is.na(x[mets]),0,x[mets]))}))
   rownames(mfluxmat) = mets
   inter = data.frame()
-  for(i in rownames(mfluxmat)){
+  for( i in seq_along(rownames(mfluxmat)) ){
     x = mfluxmat[i,]
     interact = matrix(0,ncol=2,nrow=1)
-    for(j in names(which(x<0))){
-      if(length(which(x>0))!=0){interact = rbind(interact,cbind(names(which(x>0)),j))}
+    for(j in names(which(x < -cutoff))){
+      if(length(which(x > cutoff))!=0){interact = rbind(interact,cbind(names(which(x > cutoff)),j))}
     }
-    interact = interact[-1,]
-    if(class(interact)=="character"){interact = t(as.matrix(interact))}
-    if(nrow(interact)!=0){inter = rbind(inter,data.frame(prod=interact[,1],cons=interact[,2],met=i, sim_step=time-1))}
+    if( !is.null(interact) & nrow(interact) > 1){
+      interact = interact[-1,,drop=FALSE] # remove zero row
+      flux <- sapply(1:nrow(interact), function(k){
+        idx.flux <- match(interact[k,], colnames(mfluxmat))
+        mfluxmat[i, idx.flux]
+      })
+      if(class(interact)=="character"){interact = t(as.matrix(interact))}
+      inter = rbind(inter,data.frame(prod=interact[,1],cons=interact[,2],met=rownames(mfluxmat)[i], sim_step=time-1, prod.flux=flux[1,], cons.flux=flux[2,]))
+    }
   }
   if(any(dim(inter)==0)) {
     warning(paste("sim_step",(time-1),":","No crossfeeding found. Try other metaboites or time points."))
     #g <- igraph::make_empty_graph()
     return(inter)
   }
+  inter$met <- factor(inter$met)
   if (plot) {
   g <- igraph::graph.data.frame(inter[,1:2], directed=TRUE)
   l <- igraph::layout.kamada.kawai(g)
   plot(g,edge.color=grDevices::rainbow(length(levels(inter$met)))[as.numeric(inter$met)],
+       edge.label=round(apply(abs(inter[,c("prod.flux", "cons.flux")]),1,min),1),
        edge.width=3,edge.arrow.size=0.8,vertex.color=1:length(igraph::V(g)),layout=l)
   legend("bottomright",legend=levels(inter$met),col=grDevices::rainbow(length(levels(inter$met))), pch=19, cex=0.7)
-  return(list(inter,g))}
+  return(invisible(list(inter,g)))}
   else return(inter)
 })
                           
@@ -2857,7 +2878,11 @@ setGeneric("plotShadowCost", function(object, spec_nr=1, sub_nr=10, cutoff=-1, n
 #' @export
 #' @rdname plotShadowCost
 setMethod("plotShadowCost", "Eval", function(object, spec_nr=1, sub_nr=10, cutoff=-1, noplot=FALSE){
-
+  
+  if( length(object@shadowlist[[2]][[spec_nr]]) == 0){
+    stop("No shadow costs were calculated during simulation. Try to enable it with simEnv(..., with_shadow=TRUE)")
+  }
+  
   df <- data.frame(spec=as.character(), sub=as.character(), shadow=as.numeric(), time=as.integer())
   
   m <- matrix(0, ncol=length(object@shadowlist[[1]][[spec_nr]]), nrow=length(object@shadowlist))

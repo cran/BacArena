@@ -1,7 +1,7 @@
 Package: BacArena
 Title: Modeling Framework for Cellular Communities in their
         Environments
-Version: 1.7
+Version: 1.8
 Authors@R: c( person("Eugen", "Bauer", , "eugen.bauer@uni.lu", role = c("aut")), 
               person("Johannes", "Zimmermann", , "j.zimmermann@iem.uni-kiel.de", role = c("aut", "cre")))
 Author: Eugen Bauer [aut],
@@ -20,11 +20,11 @@ Imports: igraph, methods, utils, stats, graphics, ggplot2, reshape2,
         glpkAPI, plyr, Rcpp
 Suggests: parallel, knitr, rmarkdown
 LinkingTo: Rcpp, RcppArmadillo, RcppEigen
-License: GPL-3
+License: GPL-3 | file LICENSE
 VignetteBuilder: knitr
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
 LazyData: true
 NeedsCompilation: yes
-Packaged: 2018-05-09 13:33:56.297 UTC; jo
+Packaged: 2019-02-15 11:03:10.871 UTC; jo
 Repository: CRAN
-Date/Publication: 2018-05-09 15:12:34 UTC
+Date/Publication: 2019-02-15 11:50:03 UTC

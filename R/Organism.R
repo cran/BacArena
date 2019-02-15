@@ -77,15 +77,23 @@ setClass("Organism",
 #' @param model Object of class sybil::modelorg containging the genome sclae metabolic model
 #' @param keys Vector with strings which are used to find biomass reaction in model
 #' @return Vector with reaction ids for biomass reaction(s)
-findrBiomass <- function(model, keys=c("biom")){
-  ex_pos <- sybil::findExchReact(model)@react_pos
+findrBiomass <- function(model, keys=c("biom", "cpd11416")){
+  ex     <- sybil::findExchReact(model)
+  ex_pos <- ex@react_pos
+  ex_biom<- c(grep(paste0(keys, collapse = "|"), ex@met_id, ignore.case = TRUE),
+              grep(paste0(keys, collapse = "|"), met_name(model)[ex@met_pos], ignore.case = TRUE))
   rbio <- vector()
   for(k in keys){
     idx <- grep(k, sybil::react_id(model), ignore.case = TRUE)
     if(length(idx)==0) idx <- grep(k, sybil::react_name(model), ignore.case = TRUE)
     if(length(idx)>0) rbio <- c(rbio, idx)
   }
+  if( length(ex_biom) > 0 ){ # take care of biomass metabolite
+    rbio   <- c(rbio, ex@react_pos[ex_biom])
+    ex_pos <- setdiff(ex_pos, ex@react_pos[ex_biom]) 
+  } 
   if(length(rbio)==0) return(NULL)
+  
   rbio <- setdiff(rbio, ex_pos) # exclude exchange reactions
   return(sybil::react_id(model)[rbio])
 }
@@ -133,9 +141,14 @@ Organism <- function(model, algo="fba", ex="EX_", ex_comp=NA, csuffix="\\[c\\]",
       cat("Available biomass reactions:", sybil::react_id(model)[idx_bio], "\n")
       cat("Biomass reaction used for growth model:", sybil::react_id(model)[idx_bio][1], "\n")
       rbiomass <- sybil::react_id(model)[idx_bio][1]
-    }else{ # if no biomass recation is found
-      cat("Optimization of biomass seems to be not the objective. Even if not optimized, a biomass reactions is needed for the growth model.")
-      stop("No biomass reaction found in model.")
+    }else{ # if no biomass reaction is found
+      cat("Optimization of biomass seems to be not the objective. Even if not optimized, a biomass reactions is needed for the growth model.\n")
+      cat("Objective functions ID:", sybil::react_id(model)[idx_obj], "\t", "Objective functions name:", sybil::react_name(model)[idx_obj], "\n")
+      if(length(idx_obj) == 0){
+        stop("No objective found for the model")  
+      }
+      rbiomass <- sybil::react_id(model)[idx_obj]
+      warning("No biomass objective set. Please check that current objective makes sense.")
     }
   }
   
@@ -162,7 +175,7 @@ Organism <- function(model, algo="fba", ex="EX_", ex_comp=NA, csuffix="\\[c\\]",
   if(setExInf){ # if setExInf is true then set lower bound of all exchange reactions which have zero values to -INF
     lobnd[which(names(lobnd) %in% medc & lobnd==0)] <- -1000
   }
-  if(is.na(typename)) typename <- sybil::mod_desc(model)
+  if(is.na(typename)) typename <- ifelse( length(sybil::mod_desc(model)) > 0, sybil::mod_desc(model), "test" )
   lpobject <- sybil::sysBiolAlg(model, algorithm=algo)
   fbasol <- sybil::optimizeProb(lpobject, react=1:length(lobnd), ub=upbnd, lb=lobnd)
   names(fbasol$fluxes) = rxname
@@ -344,8 +357,7 @@ setGeneric("optimizeLP", function(object, lpob=object@lpobj, lb=object@lbnd, ub=
 #' @export
 #' @rdname optimizeLP
 setMethod("optimizeLP", "Organism", function(object, lpob=object@lpobj, lb=object@lbnd, ub=object@ubnd, cutoff=1e-6, j, sec_obj="none", with_shadow=FALSE){ 
-  fbasl <- sybil::optimizeProb(lpob, react=1:length(lb), ub=ub, lb=lb) # react makes problems with cplex shadow costs
-  #fbasl <- sybil::optimizeProb(lpob, ub=ub, lb=lb) # without react parm, fba do not use all substrates??
+  fbasl <- sybil::optimizeProb(lpob, react=1:length(lb), ub=ub, lb=lb, resetChanges = FALSE) # resetChanges needed for cplex reduced/shadow costs
   switch(lpob@problem@solver,
          glpkAPI = {solve_ok <- fbasl$stat==5},
          cplexAPI = {solve_ok <- fbasl$stat==1},
@@ -385,17 +397,16 @@ setMethod("optimizeLP", "Organism", function(object, lpob=object@lpobj, lb=objec
            stop("Secondary objective not suported!"))
   }
   # get shadow cost from dual problem (only for glpk and cplex)
-  if(!with_shadow){
+  if(!with_shadow | !solve_ok){
     shadow=NULL
-  } else if(lpob@problem@solver=="glpkAPI"){
+  } else{
     ex <- findExchReact(object@model)
-    shadow <- glpkAPI::getRowsDualGLPK(lpob@problem@oobj)[ex@met_pos]
-    names(shadow) <- ex@met_id
-  }else if(lpob@problem@solver=="cplexAPI" & solve_ok){ # TODO: cplex shadow costs needs update of optimzeProb call in optimizeLP() which is having side effects ...
-    warning("cplex shadow costs are not supported yet")
-    #ex <- findExchReact(object@model)
-    #shadow <- cplexAPI::getPiCPLEX(lpob@problem@oobj@env, lpob@problem@oobj@lp, 0, lpob@nr-1)[ex@met_pos]
-    #names(shadow) <- ex@met_id
+    #View(fbasl$fluxes[ex@react_pos])
+    switch(lpob@problem@solver, # use reduced costs, shadow costs are not supported by sybil and direct access is causing problems with cplex
+           glpkAPI =  {shadow <- sybil::getRedCosts(lpob@problem)[ex@react_pos]},
+           cplexAPI = {shadow <- sybil::getRedCosts(lpob@problem)[ex@react_pos]},
+           shadow=NULL)
+    names(shadow) <- ex@react_id
   }
   
   names(fbasl$fluxes) <- names(object@lbnd)
@@ -548,14 +559,18 @@ setMethod("lysis", "Organism", function(object, sublb, factor=object@minweight){
 #' @param n A number giving the horizontal size of the environment.
 #' @param m A number giving the vertical size of the environment.
 #' @param pos A dataframe with all occupied x and y positions 
+#' @param occupyM A matrix indicating grid cells that are obstacles
 #' @return Returns the free position in the Moore neighbourhood, which is not occupied by other individuals. If there is no free space \code{NULL} is returned.
 #' @seealso \code{\link{Organism-class}}
 #' @examples
 #' NULL
-setGeneric("emptyHood", function(object, pos, n, m, x, y){standardGeneric("emptyHood")})
+setGeneric("emptyHood", function(object, pos, n, m, x, y, occupyM){standardGeneric("emptyHood")})
 #' @export
 #' @rdname emptyHood
-setMethod("emptyHood", "Organism", function(object, pos, n, m, x, y){
+setMethod("emptyHood", "Organism", function(object, pos, n, m, x, y, occupyM){
+  occ <- which(occupyM!=0, arr.ind = T)[,c(2,1)]
+  colnames(occ) <- c("x","y")
+  pos <- rbind(pos, occ) # block also occupied areas
   xp = c(x-1,x,x+1)
   yp = c(y-1,y,y+1)
   xp=ifelse(xp<=0,NA,xp)
@@ -583,14 +598,18 @@ setMethod("emptyHood", "Organism", function(object, pos, n, m, x, y){
 #' @param n A number giving the horizontal size of the environment.
 #' @param m A number giving the vertical size of the environment.
 #' @param pos A dataframe with all occupied x and y positions 
+#' @param occupyM A matrix indicating grid cells that are obstacles
 #' @return Returns the free position in the Moore neighbourhood, which is not occupied by other individuals. If there is no free space \code{NULL} is returned.
 #' @seealso \code{\link{Organism-class}}
 #' @examples
 #' NULL
-setGeneric("NemptyHood", function(object, pos, n, m, x, y){standardGeneric("NemptyHood")})
+setGeneric("NemptyHood", function(object, pos, n, m, x, y, occupyM){standardGeneric("NemptyHood")})
 #' @export
 #' @rdname NemptyHood
-setMethod("NemptyHood", "Organism", function(object, pos, n, m, x, y){
+setMethod("NemptyHood", "Organism", function(object, pos, n, m, x, y, occupyM){
+  occ <- which(occupyM!=0, arr.ind = T)[,c(2,1)]
+  colnames(occ) <- c("x","y")
+  pos <- rbind(pos, occ) # block also occupied areas
   xp = c(x-1,x,x+1)
   yp = c(y-1,y,y+1)
   for(i in 2:object@speed){
@@ -635,9 +654,9 @@ setGeneric("move", function(object, pos, n, m, j, occupyM){standardGeneric("move
 #' @rdname move
 setMethod("move", "Organism", function(object, pos, n, m, j, occupyM){
   if(object@speed == 1){
-    freenb <- emptyHood(object, pos, n, m, pos[j,1], pos[j,2])
+    freenb <- emptyHood(object, pos, n, m, pos[j,1], pos[j,2], occupyM)
   }else{
-    freenb <- NemptyHood(object, pos, n, m, pos[j,1], pos[j,2])
+    freenb <- NemptyHood(object, pos, n, m, pos[j,1], pos[j,2], occupyM)
   }
   if(length(freenb) != 0){
     npos = freenb[sample(length(freenb),1)]
@@ -744,7 +763,7 @@ setMethod("growth", "Bac", function(object, population, j, occupyM, fbasol, tste
   while( popvec$biomass > object@maxweight ){
   #if(popvec$biomass > object@maxweight){ 
     freenb <- emptyHood(object, neworgdat[,c('x','y')],
-              population@n, population@m, popvec$x, popvec$y)
+              population@n, population@m, popvec$x, popvec$y, occupyM)
     if(length(freenb) != 0){
       npos = freenb[sample(length(freenb),1)]
       npos = as.numeric(unlist(strsplit(npos,'_')))
@@ -813,7 +832,7 @@ setMethod("growth_par", "Bac", function(object, population, j, fbasol, tstep){
 #' @param population An object of class Arena.
 #' @param j The number of the iteration of interest.
 #' @param chemo The vector that contains the prefered substrate.
-
+#' @param occupyM A matrix indicating grid cells that are obstacles
 #' @details Bacteria move to a position in the Moore neighbourhood which has the highest concentration of the prefered substrate, which is not occupied by other individuals. The prefered substance is given by slot \code{chem} in the \code{Bac} object. If there is no free space the individuals stays in the same position. If the concentration in the Moore neighbourhood has the same concentration in every position, then random movement is implemented.
 #' @seealso \code{\link{Bac-class}} and \code{\link{emptyHood}}
 #' @examples
@@ -823,15 +842,15 @@ setMethod("growth_par", "Bac", function(object, population, j, fbasol, tstep){
 #' arena <- Arena(n=20,m=20) #initialize the environment
 #' arena <- addOrg(arena,bac,amount=10) #add 10 organisms
 #' arena <- addSubs(arena,40) #add all possible substances
-#' chemotaxis(bac,arena,1, "EX_glc(e)")
-setGeneric("chemotaxis", function(object, population, j, chemo){standardGeneric("chemotaxis")})
+#' chemotaxis(bac,arena,1, "EX_glc(e)", arena@occupyM)
+setGeneric("chemotaxis", function(object, population, j, chemo, occupyM){standardGeneric("chemotaxis")})
 #' @export
 #' @rdname chemotaxis
-setMethod("chemotaxis", "Bac", function(object, population, j, chemo){
+setMethod("chemotaxis", "Bac", function(object, population, j, chemo, occupyM){
   popvec <- population@orgdat[j,]
   attract <- population@media[[chemo]]@diffmat
   freenb <- emptyHood(object, population@orgdat[,c('x','y')],
-                      population@n, population@m, popvec$x, popvec$y)
+                      population@n, population@m, popvec$x, popvec$y, occupyM)
   if(length(freenb) != 0){
     conc <- sapply(freenb, function(x, attract){
       npos = as.numeric(unlist(strsplit(x,'_')))
@@ -903,7 +922,7 @@ setMethod("simBac", "Bac", function(object, arena, j, sublb, bacnum, sec_obj="no
     }else{
       for (v in seq_along(object@chem)){
       chemo <- object@chem[[v]]
-      chemo_pos <- chemotaxis(object, arena, j, chemo)
+      chemo_pos <- chemotaxis(object, arena, j, chemo, arena@occupyM)
       if(!is.null(chemo_pos)){arena@orgdat[j,c('x','y')] <- chemo_pos}
       }
     }
@@ -1075,7 +1094,7 @@ setMethod("cellgrowth", "Human", function(object, population, j, occupyM, fbasol
   neworgdat[j,'biomass'] <- popvec$biomass
   if(popvec$biomass > object@maxweight){
     freenb <- emptyHood(object, population@orgdat[,c('x','y')],
-                        population@n, population@m, popvec$x, popvec$y)
+                        population@n, population@m, popvec$x, popvec$y, occupyM)
     if(length(freenb) != 0){
       npos = freenb[sample(length(freenb),1)]
       npos = as.numeric(unlist(strsplit(npos,'_')))
@@ -1143,7 +1162,7 @@ setMethod("simHum", "Human", function(object, arena, j, sublb, bacnum, sec_obj="
       mov_pos <- move(object, pos, arena@n, arena@m, j, arena@occupyM)
       arena@orgdat[,c('x','y')] <- mov_pos
     }else{
-      chemo_pos <- chemotaxis(object, arena, j)
+      chemo_pos <- chemotaxis(object, arena, j, arena@occupyM)
       arena@orgdat[j,c('x','y')] <- chemo_pos
     }
   }
