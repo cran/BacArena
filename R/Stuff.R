@@ -1,5 +1,17 @@
 globalVariables(c("colpal1", "colpal2", "colpal3", "Ec_core"))
 
+# status code of linear optimization depending on solver
+getLPstat <- function(opt_sol, solver){
+  switch(solver,
+         glpkAPI =     {solve_ok <- opt_sol$stat==5},
+         cplexAPI =    {solve_ok <- opt_sol$stat==1},
+         clpAPI =      {solve_ok <- opt_sol$stat==0},
+         lpSolveAPI =  {solve_ok <- opt_sol$stat==0},
+         sybilGUROBI = {solve_ok <- opt_sol$stat==2},
+         stop("Solver not suported!"))
+  return(solve_ok)
+}
+
 # Diffusion pde solver function
 Diff2d <- function (t, y, parms){
   # geometry values are in parms
@@ -743,8 +755,9 @@ plotSubUsage <- function(simlist, subs=vector(), cutoff=1e-2, ret_data=FALSE){
 #' @param spec_list List of species names to be considered (default all)
 #' @param ret_data Set true if data should be returned
 #' @param useNames Use substance names instead of ids
+#' @param rm_unused Remove substances which do not change from plot
 #' @details Returns ggplot objects
-plotSpecActivity <- function(simlist, subs=list(), var_nr=10, spec_list=NULL, ret_data=FALSE, useNames=FALSE){
+plotSpecActivity <- function(simlist, subs=list(), var_nr=10, spec_list=NULL, ret_data=FALSE, useNames=FALSE, rm_unused=TRUE){
   
   if(is(simlist, "Eval")) simlist <- list(simlist)
   if(length(subs)==0) {subs_tocheck <- names(getVarSubs(simlist[[1]]))
@@ -777,6 +790,11 @@ plotSpecActivity <- function(simlist, subs=list(), var_nr=10, spec_list=NULL, re
   df$time = df$time-1
   
   if( useNames ) df$sub <- names(simlist[[1]]@mediac)[match(df$sub, simlist[[1]]@mediac)]
+  
+  if( rm_unused ){
+    unused <- subs[sapply(subs_tocheck, function(sub){all(df[df$sub==sub,"mflux"]==0)})]
+    if( length(unused)>0 ) df <- df[!df$sub %in% unused,]
+  }
   
   q1 <- ggplot2::ggplot(df, ggplot2::aes_string(x="time", y="mflux")) + ggplot2::geom_line(ggplot2::aes_string(col="sub"), size=1) + 
         ggplot2::facet_wrap(~spec, scales="free_y") + ggplot2::xlab("") + ggplot2::ylab("mmol/(h*g_dw)")
@@ -909,7 +927,7 @@ findFeeding3rep <- function(simlist, time, mets, plot=TRUE, mfunction="mean"){
       if(length(which(x>0))!=0){interact = rbind(interact,cbind(names(which(x>0)),j))}
     }
     interact = interact[-1,]
-    if(class(interact)=="character"){interact = t(as.matrix(interact))}
+    if("character" %in% class(interact)){interact = t(as.matrix(interact))}
     if(nrow(interact)!=0){inter = rbind(inter,data.frame(prod=interact[,1],cons=interact[,2],met=i))}
   }
   if(any(dim(inter)==0)) {
@@ -917,10 +935,12 @@ findFeeding3rep <- function(simlist, time, mets, plot=TRUE, mfunction="mean"){
     g <- igraph::make_empty_graph()
     return(list(inter,g))
   }
+  if (plot) {
   g <- igraph::graph.data.frame(inter[,1:2], directed=TRUE)
   l <- igraph::layout.kamada.kawai(g)
   plot(g,edge.color=grDevices::rainbow(length(levels(inter$met)))[as.numeric(inter$met)],
        edge.width=3,edge.arrow.size=0.8,vertex.color=1:length(igraph::V(g)),layout=l)
   legend("bottomright",legend=levels(inter$met),col=grDevices::rainbow(length(levels(inter$met))), pch=19, cex=0.7)
-  return(list(inter,g))
+  return(invisible(list(inter,g)))}
+  else return(inter)
 }

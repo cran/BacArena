@@ -31,6 +31,7 @@ globalVariables(c("diffuseNaiveCpp","diffuseSteveCpp"))
 #' @slot models A list containing Objects of class sybil::modelorg which represent the genome scale metabolic models
 #' @slot occupyM A matrix indicating grid cells that are obstacles
 #' @slot sublb A data matrix containing positions with amounts of substance for all organism
+#' @slot removeM A matrix indicating grid cells from which organisms are removed (i.e. killed) after each time step
 setClass("Arena",
          representation(
            orgdat="data.frame",
@@ -52,7 +53,8 @@ setClass("Arena",
            scale="numeric",
            models="list",
            occupyM="matrix",
-           sublb="matrix"
+           sublb="matrix",
+           removeM="matrix"
         ),
         prototype(
           orgdat = data.frame(biomass=numeric(0),type=integer(0),phenotype=integer(0),x=integer(0),y=integer(0)),
@@ -92,7 +94,8 @@ Arena <- function(Lx=NULL, Ly=NULL, n=100, m=100, seed=sample(1:10000,1), ...){
                                                      ReacTran::setup.grid.1D(x.up = 0, L = Lx, N = n)))
   scale   <- (Lx*Ly)/(n*m)
   occupyM <- matrix(0, ncol=n, nrow=m)
-  new("Arena", Lx=Lx, Ly=Ly, n=n, m=m, scale=scale, gridgeometry=gridgeometry, occupyM=occupyM, seed=seed, ...)
+  removeM <- matrix(0, ncol=n, nrow=m)
+  new("Arena", Lx=Lx, Ly=Ly, n=n, m=m, scale=scale, gridgeometry=gridgeometry, occupyM=occupyM, removeM=removeM, seed=seed, ...)
 }
 
 
@@ -192,8 +195,23 @@ setMethod("addOrg", "Arena", function(object, specI, amount=1, x=NULL, y=NULL, p
   if( specI@maxweight <= specI@minweight*2 )
     stop("Maxweight needs to be bigger than two-times minweight otherwise cells will die immediately after duplication")
   
- 
-  spectype <- specI@type
+  # check if name is already used by other organism
+  idx.dupl <- match(specI@type, names(object@specs))
+  if( !is.na(idx.dupl) ){
+    if( !identical( specI@model, object@specs[[idx.dupl]]@model ) ){
+      spectype <- paste0(specI@type, "_",length(grep(specI@type, names(object@specs))))  
+      specI@type <- spectype # needs to be re-set!
+      print(paste0("Organism of the same type but with different model already present, added a new one:", spectype))
+    }
+    else{
+      spectype <- specI@type  
+      print("Organism of the same type and model already present, merged new organism with old one")
+    } 
+  } 
+  else{
+    spectype <- specI@type
+  } 
+  
   neworgdat <- object@orgdat
   newspecs <- object@specs
   newspecs[[spectype]] <- specI
@@ -206,8 +224,8 @@ setMethod("addOrg", "Arena", function(object, specI, amount=1, x=NULL, y=NULL, p
   names(newmflux[[spectype]]) <- names(specI@lbnd)
   #shadow
   ex=sybil::findExchReact(specI@model)
-  newshadow[[spectype]] <- numeric(length(ex))
-  names(newshadow[[spectype]]) <- ex@met_id
+  newshadow[[spectype]] <- numeric(length(ex)+1)
+  names(newshadow[[spectype]]) <- c(ex@met_id, specI@rbiomass)
 
   type <- which(names(newspecs)==spectype) 
   lastind <- nrow(object@orgdat)
@@ -273,7 +291,7 @@ setMethod("addOrg", "Arena", function(object, specI, amount=1, x=NULL, y=NULL, p
 #' @param unit A character used as chemical unit to set the amount of the substances to be added (valid values are: mmol/cell, mmol/cm2, mmol/arena, mM)
 #' @param difunc A character vector ("pde","cpp" or "r") describing the function for diffusion.
 #' @param pde Choose diffusion transport reaction to be used (default is diffusion only)
-#' @param difspeed A number indicating the diffusion speed (given by number of cells per iteration).
+#' @param difspeed A number indicating the diffusion rate (given by cm^2/h). Default is set to glucose diffusion in a aqueous solution (6.7e-6 cm^2/s * 3600 s/h = 0.02412 cm^2/h )
 #' @param add A boolean variable defining whether the amount of substance should be summed or replaced
 #' @param diffmat A matrix with spatial distributed initial concentrations (if not set, a homogenous matrix using smax is created)
 #' @param template True if diffmat matrix should be used as tempalte only (will be multiplied with smax to obtain cocentrations)
@@ -289,10 +307,10 @@ setMethod("addOrg", "Arena", function(object, specI, amount=1, x=NULL, y=NULL, p
 #' arena <- Arena(n=20,m=20) #initialize the environment
 #' arena <- addOrg(arena,bac,amount=10) #add 10 organisms
 #' arena <- addSubs(arena,20,c("EX_glc(e)","EX_o2(e)","EX_pi(e)")) #add glucose, o2, pi
-setGeneric("addSubs", function(object, smax=0, mediac=object@mediac, difunc="pde", pde="Diff2d", difspeed=6.7e-6, unit="mmol/cell", add=TRUE, diffmat=NULL, template=FALSE, Dgrid=NULL, Vgrid=NULL, addAnyway=FALSE){standardGeneric("addSubs")})
+setGeneric("addSubs", function(object, smax=0, mediac=object@mediac, difunc="pde", pde="Diff2d", difspeed=0.02412, unit="mmol/cell", add=TRUE, diffmat=NULL, template=FALSE, Dgrid=NULL, Vgrid=NULL, addAnyway=FALSE){standardGeneric("addSubs")})
 #' @rdname addSubs
 #' @export
-setMethod("addSubs", "Arena", function(object, smax=0, mediac=object@mediac, difunc="pde", pde="Diff2d", difspeed=6.7e-6, unit="mmol/cell", add=TRUE, diffmat=NULL, template=FALSE, Dgrid=NULL, Vgrid=NULL, addAnyway=FALSE){
+setMethod("addSubs", "Arena", function(object, smax=0, mediac=object@mediac, difunc="pde", pde="Diff2d", difspeed=0.02412, unit="mmol/cell", add=TRUE, diffmat=NULL, template=FALSE, Dgrid=NULL, Vgrid=NULL, addAnyway=FALSE){
   #switch(class(object),"Arena"={object <- object}, "Eval"={arenalast <- getArena(object)}, stop("Please supply an object of class Arena or Eval."))
   if(!(class(object)=="Arena" || class(object)=="Eval")){stop("Please supply an object of class Arena or Eval.")}
   if(length(smax) != length(mediac) && length(smax) != 1){
@@ -718,7 +736,6 @@ setMethod("checkPhen", "Arena", function(object, org, cutoff=1e-6, fbasol){
 #' @param cutoff A number giving the cutoff for values of the objective function and fluxes of exchange reactions.
 #' @param fbasol Problem object according to the constraints and then solved with \code{optimizeProb}.
 #' 
-#' @rdname checkPhen_par
 setGeneric("checkPhen_par", function(object, org, cutoff=1e-6, fbasol){standardGeneric("checkPhen_par")})
 #' @export
 #' @rdname checkPhen_par
@@ -821,7 +838,7 @@ setMethod("simEnv", "Arena", function(object, time, lrw=NULL, continue=FALSE, re
          "Eval"={arena <- getArena(object); evaluation <- object},
          stop("Please supply an object of class Arena or Eval."))
   if( sec_obj=="none" & any(sapply(object@specs, function(s){s@limit_growth})))
-    warning("If growth is limitted by maximum weight for an organism (max_weight=TRUE) it is recommended to use minimize total flux (sec_obj='mtf').")
+    warning("If growth is limited by maximum weight for an organism (max_weight=TRUE) it is recommended to use minimize total flux (sec_obj='mtf').")
   
   if(is.null(lrw)){lrw=estimate_lrw(arena@n,arena@m)}
   for(i in names(arena@specs)){
@@ -908,6 +925,17 @@ setMethod("simEnv", "Arena", function(object, time, lrw=NULL, continue=FALSE, re
       sublb_tmp[,c('x','y')] = newpos
       arena@sublb = as.matrix(sublb_tmp)
     }
+    idx.rm <- which(arena@removeM > 0, arr.ind=TRUE) # remove organisms given removal matrix
+    if( nrow(idx.rm) > 0 ){
+      idx.rm.str <- apply(idx.rm, 1, function(r){paste0(r,collapse=",")})
+      idx.orgdat.str <- apply(arena@orgdat[,c('x','y')], 1, function(r){paste0(r,collapse=",")})
+      rm.rows <- which(!is.na(match(idx.orgdat.str, idx.rm.str)))
+      if( length(rm.rows)> 0 ){
+        arena@orgdat <- arena@orgdat[-rm.rows,]
+        if(verbose) cat("removed", length(rm.rows), "organisms\n")
+      }
+    }
+    
     addEval(evaluation, arena)
     if(reduce && i<time){evaluation = redEval(evaluation)}
     if(nrow(arena@orgdat)==0 && !continue){
@@ -2694,7 +2722,7 @@ setMethod("findFeeding3", "Eval", function(object, time, mets, plot=TRUE, cutoff
         idx.flux <- match(interact[k,], colnames(mfluxmat))
         mfluxmat[i, idx.flux]
       })
-      if(class(interact)=="character"){interact = t(as.matrix(interact))}
+      if("character" %in% class(interact)){interact = t(as.matrix(interact))}
       inter = rbind(inter,data.frame(prod=interact[,1],cons=interact[,2],met=rownames(mfluxmat)[i], sim_step=time-1, prod.flux=flux[1,], cons.flux=flux[2,]))
     }
   }
@@ -2873,11 +2901,12 @@ setMethod("checkCorr", "Eval", function(object, corr=NULL, tocheck=list()){
 #' @param sub_nr Maximal number of substances to be show
 #' @param cutoff Shadow costs should be smaller than cutoff
 #' @param noplot Do not plot
+#' @param useNames Use substance names instead of ids
 #' @details Returns ggplot objects
-setGeneric("plotShadowCost", function(object, spec_nr=1, sub_nr=10, cutoff=-1, noplot=FALSE){standardGeneric("plotShadowCost")})
+setGeneric("plotShadowCost", function(object, spec_nr=1, sub_nr=10, cutoff=-1, noplot=FALSE, useNames=FALSE){standardGeneric("plotShadowCost")})
 #' @export
 #' @rdname plotShadowCost
-setMethod("plotShadowCost", "Eval", function(object, spec_nr=1, sub_nr=10, cutoff=-1, noplot=FALSE){
+setMethod("plotShadowCost", "Eval", function(object, spec_nr=1, sub_nr=10, cutoff=-1, noplot=FALSE, useNames=FALSE){
   
   if( length(object@shadowlist[[2]][[spec_nr]]) == 0){
     stop("No shadow costs were calculated during simulation. Try to enable it with simEnv(..., with_shadow=TRUE)")
@@ -2889,8 +2918,12 @@ setMethod("plotShadowCost", "Eval", function(object, spec_nr=1, sub_nr=10, cutof
   for(t in seq_along(object@shadowlist)){
         m[t,] <- object@shadowlist[[t]][[spec_nr]]
   }
-  if(all(m==0)) {
+  if(all(m==0, na.rm = T)) {
     print("no shadow costs available")
+    return()}
+  rxn.last <- names(object@shadowlist[[1]][[spec_nr]])[length(object@shadowlist[[1]][[spec_nr]])]
+  if(rxn.last == object@specs[[spec_nr]]@rbiomass & all(m[,-ncol(m)]==0, na.rm = T)){ # last column is reduced cost of biomass
+    print("Growth seems to be only limited by duplication rate (check organism's maxweight)")
     return()}
   df <- as.data.frame(m)
   colnames(df) <- names(object@shadowlist[[1]][[spec_nr]])
@@ -2906,6 +2939,8 @@ setMethod("plotShadowCost", "Eval", function(object, spec_nr=1, sub_nr=10, cutof
   df <- reshape2::melt(df, id.vars="time")
   colnames(df)[2:3] <- c("sub", "shadow")
   
+  if( useNames ) df$sub <- object@specs[[spec_nr]]@model@met_name[match(df$sub, object@specs[[spec_nr]]@model@met_id)]
+  
   # do not plot shadow costs but print statistics
   if(noplot){
     df2 <- data.frame()
@@ -2916,9 +2951,9 @@ setMethod("plotShadowCost", "Eval", function(object, spec_nr=1, sub_nr=10, cutof
     return(df2)
   }
   
-  q1 <- ggplot2::ggplot(df, ggplot2::aes(x=df$time, y=df$shadow)) + ggplot2::geom_line(ggplot2::aes(col=df$sub), size=1)
+  q1 <- ggplot2::ggplot(df, ggplot2::aes(x=df$time, y=df$shadow)) + ggplot2::geom_line(ggplot2::aes(col=df$sub), size=1) + ggplot2::xlab("")
   
-  q2 <- ggplot2::ggplot(df, ggplot2::aes(factor(df$sub), df$shadow)) + ggplot2::geom_boxplot(ggplot2::aes(color=factor(df$sub), fill=factor(df$sub)), alpha=0.2) +  ggplot2::ggtitle(names(object@specs)[spec_nr]) +
+  q2 <- ggplot2::ggplot(df, ggplot2::aes(factor(df$sub), df$shadow)) + ggplot2::geom_boxplot(ggplot2::aes(color=factor(df$sub), fill=factor(df$sub)), alpha=0.2) +  ggplot2::ggtitle(names(object@specs)[spec_nr]) + ggplot2::xlab("") +
     ggplot2::theme(axis.text.x = ggplot2::element_blank())
 
   return(list(q1, q2))
