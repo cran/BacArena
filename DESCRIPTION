@@ -1,7 +1,7 @@
 Package: BacArena
 Title: Modeling Framework for Cellular Communities in their
         Environments
-Version: 1.8.1
+Version: 1.8.2
 Authors@R: c( person("Eugen", "Bauer", , "eugen.bauer@uni.lu", role = c("aut")), 
               person("Johannes", "Zimmermann", , "j.zimmermann@iem.uni-kiel.de", role = c("aut", "cre")))
 Author: Eugen Bauer [aut],
@@ -15,7 +15,7 @@ Description: Can be used for simulation of organisms living in
     along with data analysis techniques.
 URL: https://BacArena.github.io/
 BugReports: https://github.com/euba/BacArena/issues
-Depends: R (>= 3.0.0), sybil (>= 2.1.3), ReacTran (>= 1.4.2), deSolve
+Depends: R (>= 3.5.0), sybil (>= 2.1.3), ReacTran (>= 1.4.2), deSolve
         (>= 1.12), Matrix (>= 1.2)
 Imports: methods, utils, stats, graphics, ggplot2, reshape2, glpkAPI,
         plyr, Rcpp, igraph, stringr, R.matlab
@@ -26,6 +26,6 @@ VignetteBuilder: knitr
 RoxygenNote: 7.0.2
 LazyData: true
 NeedsCompilation: yes
-Packaged: 2019-12-17 16:49:37.792 UTC; jo
+Packaged: 2020-05-20 10:30:20.501 UTC; jo
 Repository: CRAN
-Date/Publication: 2019-12-17 17:50:02 UTC
+Date/Publication: 2020-05-20 15:40:12 UTC
